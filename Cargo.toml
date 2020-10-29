@@ -1,0 +1,8 @@
+[package]
+name = "surface-dial-daemon"
+version = "0.1.0"
+authors = ["Daniel Prilik <danielprilik@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+evdev-rs = { path = "../evdev-rs/" }

@@ -1,0 +1,4 @@
+# modify ExecStart to wherever you put surface-dial-daemon
+[Service]
+Type=oneshot
+ExecStart=/home/danielprilik/.cargo/bin/surface-dial-daemon
