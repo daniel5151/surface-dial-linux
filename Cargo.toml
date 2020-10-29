@@ -5,4 +5,6 @@ authors = ["Daniel Prilik <danielprilik@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-evdev-rs = { path = "../evdev-rs/" }
+# custom fork which implements `Send` on UInputDevice
+evdev-rs = { git = "https://github.com/daniel5151/evdev-rs.git", sha = "cc9060d" }
+notify-rust = "4"

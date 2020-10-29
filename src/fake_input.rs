@@ -12,22 +12,34 @@ fn get_fake_input() -> io::Result<&'static UInputDevice> {
         device.enable(&EventType::EV_SYN)?;
         device.enable(&EventCode::EV_SYN(EV_SYN::SYN_REPORT))?;
 
-        device.enable(&EventType::EV_KEY)?;
-        device.enable(&EventCode::EV_KEY(EV_KEY::KEY_LEFTSHIFT))?;
-
-        device.enable(&EventCode::EV_KEY(EV_KEY::KEY_MUTE))?;
-        device.enable(&EventCode::EV_KEY(EV_KEY::KEY_VOLUMEDOWN))?;
-        device.enable(&EventCode::EV_KEY(EV_KEY::KEY_VOLUMEUP))?;
-        device.enable(&EventCode::EV_KEY(EV_KEY::KEY_NEXTSONG))?;
-        device.enable(&EventCode::EV_KEY(EV_KEY::KEY_PLAYPAUSE))?;
-        device.enable(&EventCode::EV_KEY(EV_KEY::KEY_PREVIOUSSONG))?;
-
-        device.enable(&EventCode::EV_KEY(EV_KEY::KEY_LEFT))?;
-        device.enable(&EventCode::EV_KEY(EV_KEY::KEY_RIGHT))?;
-        device.enable(&EventCode::EV_KEY(EV_KEY::KEY_SPACE))?;
-
         device.enable(&EventType::EV_MSC)?;
         device.enable(&EventCode::EV_MSC(EV_MSC::MSC_SCAN))?;
+
+        device.enable(&EventType::EV_KEY)?;
+        {
+            device.enable(&EventCode::EV_KEY(EV_KEY::KEY_LEFTSHIFT))?;
+            device.enable(&EventCode::EV_KEY(EV_KEY::KEY_LEFTCTRL))?;
+
+            device.enable(&EventCode::EV_KEY(EV_KEY::KEY_MUTE))?;
+            device.enable(&EventCode::EV_KEY(EV_KEY::KEY_VOLUMEDOWN))?;
+            device.enable(&EventCode::EV_KEY(EV_KEY::KEY_VOLUMEUP))?;
+            device.enable(&EventCode::EV_KEY(EV_KEY::KEY_NEXTSONG))?;
+            device.enable(&EventCode::EV_KEY(EV_KEY::KEY_PLAYPAUSE))?;
+            device.enable(&EventCode::EV_KEY(EV_KEY::KEY_PREVIOUSSONG))?;
+
+            device.enable(&EventCode::EV_KEY(EV_KEY::KEY_LEFT))?;
+            device.enable(&EventCode::EV_KEY(EV_KEY::KEY_RIGHT))?;
+
+            device.enable(&EventCode::EV_KEY(EV_KEY::KEY_SPACE))?;
+            device.enable(&EventCode::EV_KEY(EV_KEY::KEY_EQUAL))?;
+            device.enable(&EventCode::EV_KEY(EV_KEY::KEY_MINUS))?;
+        }
+
+        device.enable(&EventType::EV_REL)?;
+        {
+            device.enable(&EventCode::EV_REL(EV_REL::REL_WHEEL))?;
+            device.enable(&EventCode::EV_REL(EV_REL::REL_WHEEL_HI_RES))?;
+        }
 
         unsafe { FAKE_INPUT = Some(UInputDevice::create_from_device(&device)?) }
     }
@@ -99,4 +111,33 @@ impl FakeInput {
         self.syn_report()?;
         Ok(())
     }
+
+    pub fn scroll_step(&self, dir: ScrollStep) -> io::Result<()> {
+        // copied from my razer blackwidow chroma mouse
+        self.uinput.write_event(&InputEvent {
+            time: TimeVal::new(0, 0),
+            event_code: EventCode::EV_REL(EV_REL::REL_WHEEL),
+            event_type: EventType::EV_REL,
+            value: match dir {
+                ScrollStep::Down => -1,
+                ScrollStep::Up => 1,
+            },
+        })?;
+        self.uinput.write_event(&InputEvent {
+            time: TimeVal::new(0, 0),
+            event_code: EventCode::EV_REL(EV_REL::REL_WHEEL_HI_RES),
+            event_type: EventType::EV_REL,
+            value: match dir {
+                ScrollStep::Down => -120,
+                ScrollStep::Up => 120,
+            },
+        })?;
+        self.syn_report()?;
+        Ok(())
+    }
+}
+
+pub enum ScrollStep {
+    Up,
+    Down,
 }

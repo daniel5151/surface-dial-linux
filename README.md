@@ -27,17 +27,24 @@ It would be cool to create some sort of GUI overlay (similar to the Windows one)
 ## Functionality
 
 - [x] Interpret raw Surface Dial event
-- [ ] Dynamically switch between operating modes
-    - [ ] Context-sensitive (based on currently open application)
-    - [ ] Using `surface-dial-cli` application
-    - [ ] Using some-sort of on-device mechanism (e.g: long-press)
-- Various Operating Modes
+- Operating Modes
     - [x] Volume Controls
     - [x] Media Controls
     - [x] D-Pad (emulated left, right, and space key)
-    - [ ] Scrolling / Zooming
+    - [x] Scrolling / Zooming
+    - [ ] \(meta\) Specify modes via config file(s)
+- [ ] Dynamically switch between operating modes
+    - _currently required re-compiling the daemon_
+    - [ ] Context-sensitive (based on currently open application)
+    - [ ] Using `surface-dial-cli` application
+    - [ ] Using some-sort of on-device mechanism (e.g: long-press)
+- [ ] Haptic Feedback
+    - This is tough one, as it doesn't seem like the kernel driver exposes any haptic feedback interface...
+- [x] Desktop Notifications
+    - [x] On Launch
+    - [x] When switching between sub-modes (e.g: scroll/zoom)
 
-Feel free to suggest / contribute new features!
+Feel free to contribute new features!
 
 ## Building
 
@@ -90,19 +97,30 @@ If your distro doesn't use `systemd`, you'll have to come up with something your
 cargo install --path .
 
 # IMPORTANT: modify the .service file to reflect where you placed the `service-dial-daemon` executable
-vi surface-dial.service
+vi ./install/surface-dial.service
 
-# install the systemd service
-sudo cp surface-dial.service /etc/systemd/system/surface-dial.service
-# install the service-dial udev rule
-sudo cp surface-dial-udev.rules /etc/udev/rules.d/50-surface-dial.rules
+# create new group for uinput
+# (the 99-uinput.rules file changes the group of /dev/uinput to this new group)
+sudo groupdadd -f uinput
+
+# add self to the new uinput group and the existing /dev/input group
+sudo gpasswd -a $(whoami) uinput
+sudo gpasswd -a $(whoami) $(stat -c "%G" /dev/input/event0)
+
+# install the systemd user service
+mkdir -p ~/.config/systemd/user/
+cp ./install/surface-dial.service ~/.config/systemd/user/surface-dial.service
+
+# install the udev rules
+sudo cp ./install/99-uinput.rules /etc/udev/rules.d/99-uinput.rules
+sudo cp ./install/50-surface-dial.rules /etc/udev/rules.d/50-surface-dial.rules
 
 # reload systemd + udev
-sudo systemctl daemon-reload
+systemctl --user daemon-reload
 sudo udevadm control --reload
 ```
 
-You many need to disconnect + reconnect the Surface Dial for the `udev` rule to trigger.
+You may need to reboot to have the various groups / udev rules propagate.
 
 ## License
 

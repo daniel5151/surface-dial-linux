@@ -87,7 +87,7 @@ impl Worker {
                 Ordering::Greater => self.fake_input.key_press(&[EV_KEY::KEY_RIGHT]).unwrap(),
             }
 
-            eprintln!("{:?}", self.velocity);
+            // eprintln!("{:?}", self.velocity);
         }
     }
 }

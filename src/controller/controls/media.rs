@@ -23,11 +23,11 @@ impl Media {
 
 impl ControlMode for Media {
     fn on_btn_press(&mut self) -> DynResult<()> {
-        self.fake_input.key_click(&[EV_KEY::KEY_PLAYPAUSE])?;
         Ok(())
     }
 
     fn on_btn_release(&mut self) -> DynResult<()> {
+        self.fake_input.key_click(&[EV_KEY::KEY_PLAYPAUSE])?;
         Ok(())
     }
 

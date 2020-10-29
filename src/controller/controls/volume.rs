@@ -24,14 +24,13 @@ impl Volume {
 impl ControlMode for Volume {
     fn on_btn_press(&mut self) -> DynResult<()> {
         // TODO: support double-click to mute
-
-        eprintln!("play/pause");
-        // self.fake_input.mute()?
-        self.fake_input.key_click(&[EV_KEY::KEY_PLAYPAUSE])?;
         Ok(())
     }
 
     fn on_btn_release(&mut self) -> DynResult<()> {
+        eprintln!("play/pause");
+        // self.fake_input.mute()?
+        self.fake_input.key_click(&[EV_KEY::KEY_PLAYPAUSE])?;
         Ok(())
     }
 

@@ -30,13 +30,14 @@ impl DialDevice {
         let mut control = None;
         let mut axis = None;
 
-        for e in fs::read_dir("/dev/input/").map_err(Error::Io)? {
-            let e = e.map_err(Error::Io)?;
+        for e in fs::read_dir("/dev/input/").map_err(Error::OpenDevInputDir)? {
+            let e = e.map_err(Error::OpenDevInputDir)?;
             if !e.file_name().to_str().unwrap().starts_with("event") {
                 continue;
             }
 
-            let file = fs::File::open(e.path()).map_err(Error::Io)?;
+            let file =
+                fs::File::open(e.path()).map_err(|err| Error::OpenEventFile(e.path(), err))?;
             let dev = Device::new_from_fd(file).map_err(Error::Evdev)?;
 
             match dev.name() {
