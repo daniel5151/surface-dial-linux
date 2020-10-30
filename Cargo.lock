@@ -119,7 +119,7 @@ dependencies = [
 [[package]]
 name = "evdev-rs"
 version = "0.4.0"
-source = "git+https://github.com/daniel5151/evdev-rs.git#0750443a1eb8edfa34cdfcf91e8c5c6cf6a12c3b"
+source = "git+https://github.com/ndesh26/evdev-rs.git#8e995b8bfc1f8ed844ae47edaa4286c99e8c88b5"
 dependencies = [
  "bitflags 1.2.1",
  "evdev-sys",
@@ -130,7 +130,7 @@ dependencies = [
 [[package]]
 name = "evdev-sys"
 version = "0.2.1"
-source = "git+https://github.com/daniel5151/evdev-rs.git#0750443a1eb8edfa34cdfcf91e8c5c6cf6a12c3b"
+source = "git+https://github.com/ndesh26/evdev-rs.git#8e995b8bfc1f8ed844ae47edaa4286c99e8c88b5"
 dependencies = [
  "cc",
  "libc",
@@ -212,9 +212,9 @@ dependencies = [
 
 [[package]]
 name = "num-integer"
-version = "0.1.43"
+version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d59457e662d541ba17869cf51cf177c0b5f0cbf476c66bdc90bf1edac4f875b"
+checksum = "d2cc698a63b549a70bc047073d2949cce27cd1c7b0a4a862d08a8031bc2801db"
 dependencies = [
  "autocfg",
  "num-traits",
@@ -222,9 +222,9 @@ dependencies = [
 
 [[package]]
 name = "num-traits"
-version = "0.2.12"
+version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac267bcc07f48ee5f8935ab0d24f316fb722d7a1292e2913f0cc196b29ffd611"
+checksum = "9a64b1ec5cda2586e284722486d802acf1f7dbdc623e2bfc57e65ca1cd099290"
 dependencies = [
  "autocfg",
 ]

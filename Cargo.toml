@@ -5,6 +5,6 @@ authors = ["Daniel Prilik <danielprilik@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-# custom fork which implements `Send` on UInputDevice
-evdev-rs = { git = "https://github.com/daniel5151/evdev-rs.git", sha = "cc9060d" }
+# master includes a PR that implements `Send` for `Device` and `UInputDevice`
+evdev-rs = { git = "https://github.com/ndesh26/evdev-rs.git" }
 notify-rust = "4"
