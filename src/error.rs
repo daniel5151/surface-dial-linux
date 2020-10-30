@@ -7,6 +7,7 @@ use evdev_rs::InputEvent;
 pub enum Error {
     OpenDevInputDir(io::Error),
     OpenEventFile(std::path::PathBuf, io::Error),
+    HidError(hidapi::HidError),
     MissingDial,
     MultipleDials,
     UnexpectedEvt(InputEvent),
@@ -19,6 +20,7 @@ impl fmt::Display for Error {
         match self {
             Error::OpenDevInputDir(e) => write!(f, "Could not open /dev/input directory: {}", e),
             Error::OpenEventFile(path, e) => write!(f, "Could not open {:?}: {}", path, e),
+            Error::HidError(e) => write!(f, "HID API Error: {}", e),
             Error::MissingDial => write!(f, "Could not find the Surface Dial"),
             Error::MultipleDials => write!(f, "Found multiple dials"),
             Error::UnexpectedEvt(evt) => write!(f, "Unexpected event: {:?}", evt),

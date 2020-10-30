@@ -2,6 +2,7 @@ use std::fs;
 use std::time::Duration;
 
 use evdev_rs::{Device, InputEvent};
+use hidapi::{HidApi, HidDevice};
 
 use crate::error::Error;
 
@@ -9,6 +10,7 @@ pub struct DialDevice {
     // TODO: explore what the control channel can be used for...
     _control: Device,
     axis: Device,
+    haptics: DialHaptics,
 }
 
 #[derive(Debug)]
@@ -30,6 +32,7 @@ impl DialDevice {
         let mut control = None;
         let mut axis = None;
 
+        // discover the evdev devices
         for e in fs::read_dir("/dev/input/").map_err(Error::OpenDevInputDir)? {
             let e = e.map_err(Error::OpenDevInputDir)?;
             if !e.file_name().to_str().unwrap().starts_with("event") {
@@ -62,6 +65,7 @@ impl DialDevice {
         Ok(DialDevice {
             _control: control.ok_or(Error::MissingDial)?,
             axis: axis.ok_or(Error::MissingDial)?,
+            haptics: DialHaptics::new()?,
         })
     }
 
@@ -78,6 +82,10 @@ impl DialDevice {
             DialEvent::from_raw_evt(axis_evt.clone()).ok_or(Error::UnexpectedEvt(axis_evt))?;
 
         Ok(event)
+    }
+
+    pub fn haptics(&self) -> &DialHaptics {
+        &self.haptics
     }
 }
 
@@ -108,5 +116,69 @@ impl DialEvent {
         };
 
         Some(evt)
+    }
+}
+
+pub struct DialHaptics {
+    hid_device: HidDevice,
+}
+
+impl DialHaptics {
+    fn new() -> Result<DialHaptics, Error> {
+        let api = HidApi::new().map_err(Error::HidError)?;
+        let hid_device = api.open(0x045e, 0x091b).map_err(|_| Error::MissingDial)?;
+
+        // let mut buf = [0; 256];
+
+        // buf[0] = 1;
+        // let len = device
+        //     .get_feature_report(&mut buf)
+        //     .map_err(Error::HidError)?;
+        // eprintln!("1: {:02x?}", &buf[..len]);
+
+        // buf[0] = 2;
+        // let len = device
+        //     .get_feature_report(&mut buf)
+        //     .map_err(Error::HidError)?;
+        // eprintln!("2: {:02x?}", &buf[..len]);
+
+        Ok(DialHaptics { hid_device })
+    }
+
+    /// `steps` should be a value between 0 and 3600, which corresponds to the
+    /// number of subdivisions the dial should use. If left unspecified, this
+    /// defaults to 36 (an arbitrary choice that "feels good" most of the time)
+    pub fn set_mode(&self, haptics: bool, steps: Option<u16>) -> Result<(), Error> {
+        let steps = steps.unwrap_or(36);
+        assert!(steps <= 3600);
+
+        let steps_lo = steps & 0xff;
+        let steps_hi = (steps >> 8) & 0xff;
+
+        let mut buf = [0; 8];
+        buf[0] = 1;
+        buf[1] = steps_lo as u8; // steps
+        buf[2] = steps_hi as u8; // steps
+        buf[3] = 0x00; // Repeat Count
+        buf[4] = if haptics { 0x03 } else { 0x02 }; // auto trigger
+        buf[5] = 0x00; // Waveform Cutoff Time
+        buf[6] = 0x00; // retrigger period
+        buf[7] = 0x00; // retrigger period
+        self.hid_device
+            .send_feature_report(&buf[..8])
+            .map_err(Error::HidError)?;
+
+        Ok(())
+    }
+
+    pub fn buzz(&self, repeat: u8) -> Result<(), Error> {
+        let mut buf = [0; 5];
+        buf[0] = 0x01; // Report ID
+        buf[1] = repeat; // RepeatCount
+        buf[2] = 0x03; // ManualTrigger
+        buf[3] = 0x00; // RetriggerPeriod (lo)
+        buf[4] = 0x00; // RetriggerPeriod (hi)
+        self.hid_device.write(&buf).map_err(Error::HidError)?;
+        Ok(())
     }
 }

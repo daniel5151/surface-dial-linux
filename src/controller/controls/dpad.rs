@@ -4,6 +4,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use crate::controller::ControlMode;
+use crate::dial_device::DialHaptics;
 use crate::fake_input::FakeInput;
 use crate::DynResult;
 
@@ -106,12 +107,6 @@ impl Drop for DPad {
     }
 }
 
-impl Default for DPad {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl DPad {
     pub fn new() -> DPad {
         let (msg_tx, msg_rx) = mpsc::channel();
@@ -128,17 +123,22 @@ impl DPad {
 }
 
 impl ControlMode for DPad {
-    fn on_btn_press(&mut self) -> DynResult<()> {
+    fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()> {
+        haptics.set_mode(false, Some(3600))?;
+        Ok(())
+    }
+
+    fn on_btn_press(&mut self, _: &DialHaptics) -> DynResult<()> {
         eprintln!("space");
         self.fake_input.key_click(&[EV_KEY::KEY_SPACE])?;
         Ok(())
     }
 
-    fn on_btn_release(&mut self) -> DynResult<()> {
+    fn on_btn_release(&mut self, _: &DialHaptics) -> DynResult<()> {
         Ok(())
     }
 
-    fn on_dial(&mut self, delta: i32) -> DynResult<()> {
+    fn on_dial(&mut self, _: &DialHaptics, delta: i32) -> DynResult<()> {
         self.msg.send(Msg::Delta(delta))?;
         Ok(())
     }

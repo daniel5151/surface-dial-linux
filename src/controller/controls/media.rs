@@ -1,47 +1,44 @@
-use crate::common::{DialDir, ThresholdHelper};
 use crate::controller::ControlMode;
+use crate::dial_device::DialHaptics;
 use crate::fake_input::FakeInput;
 use crate::DynResult;
 
 use evdev_rs::enums::EV_KEY;
 
 pub struct Media {
-    thresh: ThresholdHelper,
-
     fake_input: FakeInput,
 }
 
 impl Media {
-    pub fn new(sensitivity: i32) -> Media {
+    pub fn new() -> Media {
         Media {
-            thresh: ThresholdHelper::new(sensitivity),
-
             fake_input: FakeInput::new(),
         }
     }
 }
 
 impl ControlMode for Media {
-    fn on_btn_press(&mut self) -> DynResult<()> {
+    fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()> {
+        haptics.set_mode(false, Some(36))?;
         Ok(())
     }
 
-    fn on_btn_release(&mut self) -> DynResult<()> {
+    fn on_btn_press(&mut self, _: &DialHaptics) -> DynResult<()> {
+        Ok(())
+    }
+
+    fn on_btn_release(&mut self, _: &DialHaptics) -> DynResult<()> {
         self.fake_input.key_click(&[EV_KEY::KEY_PLAYPAUSE])?;
         Ok(())
     }
 
-    fn on_dial(&mut self, delta: i32) -> DynResult<()> {
-        match self.thresh.update(delta) {
-            Some(DialDir::Left) => {
-                eprintln!("next song");
-                self.fake_input.key_click(&[EV_KEY::KEY_NEXTSONG])?;
-            }
-            Some(DialDir::Right) => {
-                eprintln!("last song");
-                self.fake_input.key_click(&[EV_KEY::KEY_PREVIOUSSONG])?;
-            }
-            None => {}
+    fn on_dial(&mut self, _: &DialHaptics, delta: i32) -> DynResult<()> {
+        if delta > 0 {
+            eprintln!("last song");
+            self.fake_input.key_click(&[EV_KEY::KEY_PREVIOUSSONG])?;
+        } else {
+            eprintln!("next song");
+            self.fake_input.key_click(&[EV_KEY::KEY_NEXTSONG])?;
         }
         Ok(())
     }

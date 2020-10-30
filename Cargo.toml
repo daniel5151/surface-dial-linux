@@ -7,4 +7,6 @@ edition = "2018"
 [dependencies]
 # master includes a PR that implements `Send` for `Device` and `UInputDevice`
 evdev-rs = { git = "https://github.com/ndesh26/evdev-rs.git" }
+hidapi = { version = "1.2.3", default-features = false, features = ["linux-shared-hidraw"] }
 notify-rust = "4"
+signal-hook = "0.1.16"

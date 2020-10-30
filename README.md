@@ -4,6 +4,7 @@ A Linux userspace controller for the [Microsoft Surface Dial](https://www.micros
 
 - Uses the [`evdev`](https://en.wikipedia.org/wiki/Evdev) API + `libevdev` to read events from the surface dial.
 - Uses `libevdev` to fake input via `/dev/uinput` (for keypresses / media controls)
+- Uses `hidapi` to configure dial sensitivity + haptics
 
 **DISCLAIMER: This is WIP software!**
 
@@ -34,33 +35,42 @@ It would be cool to create some sort of GUI overlay (similar to the Windows one)
     - [x] Scrolling / Zooming
     - [ ] \(meta\) Specify modes via config file(s)
 - [ ] Dynamically switch between operating modes
-    - _currently required re-compiling the daemon_
-    - [ ] Context-sensitive (based on currently open application)
-    - [ ] Using `surface-dial-cli` application
+    - _currently requires re-compiling the daemon_
     - [ ] Using some-sort of on-device mechanism (e.g: long-press)
-- [ ] Haptic Feedback
-    - This is tough one, as it doesn't seem like the kernel driver exposes any haptic feedback interface...
+    - [ ] Using `surface-dial-cli` application
+    - [ ] Context-sensitive (based on currently open application)
+- [x] Haptic Feedback
+    - https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/radial-controller-protocol-implementation
+    - https://www.usb.org/sites/default/files/hutrr63b_-_haptics_page_redline_0.pdf
+    - https://www.usb.org/sites/default/files/hut1_21.pdf
+    - _This was tricky to figure out, but in the end, it was surprisingly straightforward! Big thanks to [Geo](https://www.linkedin.com/in/geo-palakunnel-57718245/) for pointing me in the right direction!_
 - [x] Desktop Notifications
     - [x] On Launch
     - [x] When switching between sub-modes (e.g: scroll/zoom)
 
 Feel free to contribute new features!
 
-## Building
+## Dependencies
 
 Building `surface-dial-daemon` requires the following:
 
+- Linux Kernel 4.19 or higher
 - A fairly recent version of the Rust compiler
 - `libevdev`
+- `hidapi`
 
-If `libevdev` is not installed, the `evdev_rs` Rust library will try to build it from source, which may require other bits of build tooling. As such, it's recommended to install `libevdev` if it's available through your distribution.
+You can install Rust through [`rustup`](https://rustup.rs/).
+
+Unless you're a cool hackerman, the easiest way to get `libevdev` and `hidapi` is via your distro's package manager.
 
 ```bash
 # e.g: on ubuntu
-sudo apt install libevdev-dev
+sudo apt install libevdev-dev libhidapi-dev
 ```
 
-Otherwise, `surface-dial-daemon` uses the bog-standard `cargo build` flow.
+## Building
+
+`surface-dial-daemon` uses the bog-standard `cargo build` flow.
 
 ```bash
 cargo build -p surface-dial-daemon --release
