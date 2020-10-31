@@ -18,12 +18,13 @@ You've been warned :eyes:
 
 ## Overview
 
-Consists of two components:
+`surface-dial-daemon` is a background daemon which recieves raw events and translates them to various actions.
 
-- `surface-dial-daemon` - A background daemon which recieves raw events and translates them to various actions.
-- `surface-dial-cli` - Controller to configure daemon functionality (e.g: change operating modes)
+Aside from haptic feedback, the daemon also uses FreeDesktop notifications to provide visual feedback when performing various actions.
 
-It would be cool to create some sort of GUI overlay (similar to the Windows one), though that's a bit out of scope at the moment.
+![](notif-demo.gif)
+
+It would be cool to create some sort of GUI overlay (similar to the Windows one), though that's out of scope at the moment.
 
 ## Functionality
 
@@ -33,12 +34,12 @@ It would be cool to create some sort of GUI overlay (similar to the Windows one)
     - [x] Media Controls
     - [x] D-Pad (emulated left, right, and space key)
     - [x] Scrolling / Zooming
-    - [ ] \(meta\) Specify modes via config file(s)
-- [ ] Dynamically switch between operating modes
-    - _currently requires re-compiling the daemon_
-    - [ ] Using some-sort of on-device mechanism (e.g: long-press)
-    - [ ] Using `surface-dial-cli` application
+    - [ ] \(meta\) custom modes specified via config file(s)
+- [x] Dynamically switch between operating modes
+    - [x] Using some-sort of on-device mechanism (e.g: long-press)
     - [ ] Context-sensitive (based on currently open application)
+- [ ] Mode Persistence
+    - _At the moment, whenever the dial disconnects, the daemon is re-launched, which resets the active mode to the default one. It would be good to have some on-disk persistence to remember the last selected mode._
 - [x] Haptic Feedback
     - https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/radial-controller-protocol-implementation
     - https://www.usb.org/sites/default/files/hutrr63b_-_haptics_page_redline_0.pdf
@@ -46,6 +47,7 @@ It would be cool to create some sort of GUI overlay (similar to the Windows one)
     - _This was tricky to figure out, but in the end, it was surprisingly straightforward! Big thanks to [Geo](https://www.linkedin.com/in/geo-palakunnel-57718245/) for pointing me in the right direction!_
 - [x] Desktop Notifications
     - [x] On Launch
+    - [x] When switching between modes
     - [x] When switching between sub-modes (e.g: scroll/zoom)
 
 Feel free to contribute new features!
@@ -87,10 +89,6 @@ cargo build -p surface-dial-daemon && sudo target/debug/surface-dial-daemon
 ```
 
 Note the use of `sudo`, as `surface-dial-daemon` requires permission to access files under `/dev/input/` and `/dev/uinput`.
-
-## Using `surface-dial-cli`
-
-TODO (the controller cli doesn't exist yet lol)
 
 ## Installation
 

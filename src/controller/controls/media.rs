@@ -1,4 +1,4 @@
-use crate::controller::ControlMode;
+use crate::controller::{ControlMode, ControlModeMeta};
 use crate::dial_device::DialHaptics;
 use crate::fake_input::FakeInput;
 use crate::DynResult;
@@ -18,6 +18,13 @@ impl Media {
 }
 
 impl ControlMode for Media {
+    fn meta(&self) -> ControlModeMeta {
+        ControlModeMeta {
+            name: "Media",
+            icon: "applications-multimedia",
+        }
+    }
+
     fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()> {
         haptics.set_mode(false, Some(36))?;
         Ok(())

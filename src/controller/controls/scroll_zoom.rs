@@ -1,5 +1,5 @@
 use crate::common::action_notification;
-use crate::controller::ControlMode;
+use crate::controller::{ControlMode, ControlModeMeta};
 use crate::dial_device::DialHaptics;
 use crate::fake_input::{FakeInput, ScrollStep};
 use crate::DynResult;
@@ -26,6 +26,13 @@ const ZOOM_SENSITIVITY: u16 = 36;
 const SCROLL_SENSITIVITY: u16 = 90;
 
 impl ControlMode for ScrollZoom {
+    fn meta(&self) -> ControlModeMeta {
+        ControlModeMeta {
+            name: "Scroll/Zoom",
+            icon: "input-mouse",
+        }
+    }
+
     fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()> {
         haptics.set_mode(false, Some(SCROLL_SENSITIVITY))?;
         Ok(())
@@ -43,7 +50,7 @@ impl ControlMode for ScrollZoom {
             action_notification("Zoom Mode", "zoom-in")?;
             haptics.set_mode(false, Some(ZOOM_SENSITIVITY))?;
         } else {
-            action_notification("ScrollZoom Mode", "input-mouse")?;
+            action_notification("Scroll Mode", "input-mouse")?;
             haptics.set_mode(false, Some(SCROLL_SENSITIVITY))?;
         }
 

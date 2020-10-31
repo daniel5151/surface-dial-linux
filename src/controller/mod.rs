@@ -1,47 +1,191 @@
-use crate::DynResult;
+use std::sync::{Arc, Mutex};
 
 use crate::dial_device::{DialDevice, DialEventKind, DialHaptics};
+use crate::DynResult;
 
 pub mod controls;
 
+pub struct ControlModeMeta {
+    name: &'static str,
+    icon: &'static str,
+}
+
 pub trait ControlMode {
+    fn meta(&self) -> ControlModeMeta;
+
     fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()>;
+    fn on_end(&mut self, _haptics: &DialHaptics) -> DynResult<()> {
+        Ok(())
+    }
+
     fn on_btn_press(&mut self, haptics: &DialHaptics) -> DynResult<()>;
     fn on_btn_release(&mut self, haptics: &DialHaptics) -> DynResult<()>;
     fn on_dial(&mut self, haptics: &DialHaptics, delta: i32) -> DynResult<()>;
 }
 
+enum ActiveMode {
+    Normal(usize),
+    Meta,
+}
+
 pub struct DialController {
     device: DialDevice,
 
-    mode: Box<dyn ControlMode>,
+    modes: Vec<Box<dyn ControlMode>>,
+    active_mode: ActiveMode,
+
+    new_mode: Arc<Mutex<Option<usize>>>,
+    meta_mode: Box<dyn ControlMode>, // always MetaMode
 }
 
 impl DialController {
-    pub fn new(device: DialDevice, default_mode: Box<dyn ControlMode>) -> DialController {
-        DialController {
-            mode: default_mode,
+    pub fn new(device: DialDevice, modes: Vec<Box<dyn ControlMode>>) -> DialController {
+        let metas = modes.iter().map(|m| m.meta()).collect();
 
+        let new_mode = Arc::new(Mutex::new(None));
+
+        DialController {
             device,
+
+            modes,
+            active_mode: ActiveMode::Normal(0),
+
+            new_mode: new_mode.clone(),
+            meta_mode: Box::new(MetaMode::new(new_mode, 0, metas)),
         }
     }
 
     pub fn run(&mut self) -> DynResult<()> {
-        let haptics = self.device.haptics();
-
-        self.mode.on_start(haptics)?;
+        self.modes[0].on_start(self.device.haptics())?;
 
         loop {
             let evt = self.device.next_event()?;
+            let haptics = self.device.haptics();
+
+            if let Some(new_mode) = self.new_mode.lock().unwrap().take() {
+                self.active_mode = ActiveMode::Normal(new_mode);
+                self.modes[new_mode].on_start(haptics)?;
+            }
+
+            let mode = match self.active_mode {
+                ActiveMode::Normal(idx) => &mut self.modes[idx],
+                ActiveMode::Meta => &mut self.meta_mode,
+            };
 
             // TODO: press and hold (+ rotate?) to switch between modes
 
             match evt.kind {
                 DialEventKind::Ignored => {}
-                DialEventKind::ButtonPress => self.mode.on_btn_press(haptics)?,
-                DialEventKind::ButtonRelease => self.mode.on_btn_release(haptics)?,
-                DialEventKind::Dial(delta) => self.mode.on_dial(haptics, delta)?,
+                DialEventKind::ButtonPress => mode.on_btn_press(haptics)?,
+                DialEventKind::ButtonRelease => mode.on_btn_release(haptics)?,
+                DialEventKind::Dial(delta) => mode.on_dial(haptics, delta)?,
+                DialEventKind::ButtonLongPress => {
+                    eprintln!("long press!");
+                    if !matches!(self.active_mode, ActiveMode::Meta) {
+                        mode.on_end(haptics)?;
+                        self.active_mode = ActiveMode::Meta;
+                        self.meta_mode.on_start(haptics)?;
+                    }
+                }
             }
         }
+    }
+}
+
+/// A mode for switching between modes.
+struct MetaMode {
+    // constant
+    metas: Vec<ControlModeMeta>,
+
+    // stateful (across invocations)
+    current_mode: usize,
+    new_mode: Arc<Mutex<Option<usize>>>,
+
+    // reset in on_start
+    first_release: bool,
+    notif: Option<notify_rust::NotificationHandle>,
+}
+
+impl MetaMode {
+    fn new(
+        new_mode: Arc<Mutex<Option<usize>>>,
+        current_mode: usize,
+        metas: Vec<ControlModeMeta>,
+    ) -> MetaMode {
+        MetaMode {
+            metas,
+
+            current_mode,
+            new_mode,
+
+            first_release: true,
+            notif: None,
+        }
+    }
+}
+
+impl ControlMode for MetaMode {
+    fn meta(&self) -> ControlModeMeta {
+        unreachable!() // meta mode never queries itself
+    }
+
+    fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()> {
+        use notify_rust::*;
+        self.notif = Some(
+            Notification::new()
+                .hint(Hint::Resident(true))
+                .hint(Hint::Category("device".into()))
+                .timeout(Timeout::Never)
+                .summary("Surface Dial")
+                .body(&format!(
+                    "Entered Meta Mode (From Mode: {})",
+                    self.metas[self.current_mode].name
+                ))
+                .icon("emblem-system")
+                .show()?,
+        );
+
+        haptics.buzz(1)?;
+
+        self.first_release = true;
+
+        haptics.set_mode(true, Some(36))?;
+        Ok(())
+    }
+
+    fn on_btn_press(&mut self, _haptics: &DialHaptics) -> DynResult<()> {
+        Ok(())
+    }
+
+    fn on_btn_release(&mut self, haptics: &DialHaptics) -> DynResult<()> {
+        if self.first_release {
+            self.first_release = false;
+        } else {
+            *self.new_mode.lock().unwrap() = Some(self.current_mode);
+            haptics.buzz(1)?;
+
+            self.notif.take().unwrap().close();
+        }
+        Ok(())
+    }
+
+    fn on_dial(&mut self, _haptics: &DialHaptics, delta: i32) -> DynResult<()> {
+        if delta > 0 {
+            self.current_mode += 1;
+        } else {
+            self.current_mode -= 1;
+        }
+
+        self.current_mode %= self.metas.len();
+
+        let mode_meta = &self.metas[self.current_mode];
+        if let Some(ref mut notification) = self.notif {
+            notification
+                .body(&format!("New Mode: {}", mode_meta.name))
+                .icon(mode_meta.icon);
+            notification.update();
+        }
+
+        Ok(())
     }
 }

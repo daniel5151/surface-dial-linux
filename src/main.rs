@@ -24,7 +24,7 @@ fn main() {
 fn true_main() -> DynResult<()> {
     println!("Started.");
 
-    let dial = DialDevice::new()?;
+    let dial = DialDevice::new(std::time::Duration::from_millis(750))?;
     println!("Found the dial.");
 
     std::thread::spawn(move || {
@@ -34,7 +34,7 @@ fn true_main() -> DynResult<()> {
             .timeout(Timeout::Never)
             .summary("Surface Dial")
             .body("Active!")
-            .icon("input-mouse")
+            .icon("media-optical") // it should be vaguely circular :P
             .show()
             .expect("failed to send notification");
 
@@ -46,13 +46,15 @@ fn true_main() -> DynResult<()> {
         }
     });
 
-    // let default_mode = Box::new(controller::controls::Null::new());
-    let default_mode = Box::new(controller::controls::ScrollZoom::new());
-    // let default_mode = Box::new(controller::controls::Volume::new());
-    // let default_mode = Box::new(controller::controls::Media::new());
-    // let default_mode = Box::new(controller::controls::DPad::new());
-
-    let mut controller = DialController::new(dial, default_mode);
+    let mut controller = DialController::new(
+        dial,
+        vec![
+            Box::new(controller::controls::ScrollZoom::new()),
+            Box::new(controller::controls::Volume::new()),
+            Box::new(controller::controls::Media::new()),
+            Box::new(controller::controls::DPad::new()),
+        ],
+    );
 
     controller.run()
 }

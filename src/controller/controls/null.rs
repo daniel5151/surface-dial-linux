@@ -1,16 +1,15 @@
-use crate::controller::ControlMode;
+use crate::controller::{ControlMode, ControlModeMeta};
 use crate::dial_device::DialHaptics;
 use crate::DynResult;
 
-pub struct Null {}
-
-impl Null {
-    pub fn new() -> Null {
-        Null {}
+impl ControlMode for () {
+    fn meta(&self) -> ControlModeMeta {
+        ControlModeMeta {
+            name: "null",
+            icon: "",
+        }
     }
-}
 
-impl ControlMode for Null {
     fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()> {
         haptics.set_mode(false, Some(0))?;
         Ok(())

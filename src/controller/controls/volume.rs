@@ -1,4 +1,4 @@
-use crate::controller::ControlMode;
+use crate::controller::{ControlMode, ControlModeMeta};
 use crate::dial_device::DialHaptics;
 use crate::fake_input::FakeInput;
 use crate::DynResult;
@@ -18,8 +18,15 @@ impl Volume {
 }
 
 impl ControlMode for Volume {
+    fn meta(&self) -> ControlModeMeta {
+        ControlModeMeta {
+            name: "Volume",
+            icon: "audio-volume-high",
+        }
+    }
+
     fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()> {
-        haptics.set_mode(false, Some(36 * 2))?;
+        haptics.set_mode(true, Some(36 * 2))?;
         Ok(())
     }
 

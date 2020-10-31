@@ -2,6 +2,7 @@ use notify_rust::error::Result as NotifyResult;
 use notify_rust::{Hint, Notification, NotificationHandle, Timeout};
 
 pub fn action_notification(msg: &str, icon: &str) -> NotifyResult<NotificationHandle> {
+    eprintln!("sending notification: {}", msg);
     Notification::new()
         .hint(Hint::Transient(true))
         .hint(Hint::Category("device".into()))

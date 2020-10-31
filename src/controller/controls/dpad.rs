@@ -3,7 +3,7 @@ use std::sync::mpsc;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use crate::controller::ControlMode;
+use crate::controller::{ControlMode, ControlModeMeta};
 use crate::dial_device::DialHaptics;
 use crate::fake_input::FakeInput;
 use crate::DynResult;
@@ -123,6 +123,13 @@ impl DPad {
 }
 
 impl ControlMode for DPad {
+    fn meta(&self) -> ControlModeMeta {
+        ControlModeMeta {
+            name: "Paddle",
+            icon: "input-gaming",
+        }
+    }
+
     fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()> {
         haptics.set_mode(false, Some(3600))?;
         Ok(())

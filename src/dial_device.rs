@@ -1,4 +1,5 @@
 use std::fs;
+use std::sync::mpsc;
 use std::time::Duration;
 
 use evdev_rs::{Device, InputEvent};
@@ -7,10 +8,11 @@ use hidapi::{HidApi, HidDevice};
 use crate::error::Error;
 
 pub struct DialDevice {
-    // TODO: explore what the control channel can be used for...
-    _control: Device,
-    axis: Device,
+    long_press_timeout: Duration,
     haptics: DialHaptics,
+    events: mpsc::Receiver<DialEvent>,
+
+    possible_long_press: bool,
 }
 
 #[derive(Debug)]
@@ -25,10 +27,11 @@ pub enum DialEventKind {
     ButtonPress,
     ButtonRelease,
     Dial(i32),
+    ButtonLongPress,
 }
 
 impl DialDevice {
-    pub fn new() -> Result<DialDevice, crate::Error> {
+    pub fn new(long_press_timeout: Duration) -> Result<DialDevice, crate::Error> {
         let mut control = None;
         let mut axis = None;
 
@@ -62,24 +65,66 @@ impl DialDevice {
             }
         }
 
+        // TODO: explore what the control channel can be used for...
+        let _control = control.ok_or(Error::MissingDial)?;
+        let axis = axis.ok_or(Error::MissingDial)?;
+
+        let (events_tx, events_rx) = mpsc::channel();
+
+        // TODO: interleave control events with regular events
+
+        std::thread::spawn({
+            let events = events_tx;
+            move || {
+                loop {
+                    let (_axis_status, axis_evt) = axis
+                        .next_event(evdev_rs::ReadFlag::NORMAL)
+                        .expect("Error::Evdev");
+                    // assert!(matches!(axis_status, ReadStatus::Success));
+                    let event = DialEvent::from_raw_evt(axis_evt.clone())
+                        .expect("Error::UnexpectedEvt(axis_evt)");
+
+                    events.send(event).expect("failed to send axis event");
+                }
+            }
+        });
+
         Ok(DialDevice {
-            _control: control.ok_or(Error::MissingDial)?,
-            axis: axis.ok_or(Error::MissingDial)?,
+            long_press_timeout,
+            events: events_rx,
             haptics: DialHaptics::new()?,
+
+            possible_long_press: false,
         })
     }
 
-    pub fn next_event(&self) -> Result<DialEvent, Error> {
-        // TODO: figure out how to interleave control events into the same event stream.
+    pub fn next_event(&mut self) -> Result<DialEvent, Error> {
+        let evt = if self.possible_long_press {
+            self.events.recv_timeout(self.long_press_timeout)
+        } else {
+            self.events
+                .recv()
+                .map_err(|_| mpsc::RecvTimeoutError::Disconnected)
+        };
 
-        let (_axis_status, axis_evt) = self
-            .axis
-            .next_event(evdev_rs::ReadFlag::NORMAL)
-            .map_err(Error::Evdev)?;
-        // assert!(matches!(axis_status, ReadStatus::Success));
-
-        let event =
-            DialEvent::from_raw_evt(axis_evt.clone()).ok_or(Error::UnexpectedEvt(axis_evt))?;
+        let event = match evt {
+            Ok(event) => {
+                match event.kind {
+                    DialEventKind::ButtonPress => self.possible_long_press = true,
+                    DialEventKind::ButtonRelease => self.possible_long_press = false,
+                    _ => {}
+                }
+                event
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                self.possible_long_press = false;
+                DialEvent {
+                    time: Duration::from_secs(0), // this could be improved...
+                    kind: DialEventKind::ButtonLongPress,
+                }
+            }
+            Err(_e) => panic!("Could not recv event"),
+        };
 
         Ok(event)
     }
