@@ -1,6 +1,7 @@
 #![allow(clippy::collapsible_if, clippy::new_without_default)]
 
 mod common;
+mod config;
 pub mod controller;
 mod dial_device;
 mod error;
@@ -22,12 +23,16 @@ fn main() {
 }
 
 fn true_main() -> DynResult<()> {
-    println!("Started.");
+    println!("Started");
+
+    let cfg = config::Config::from_disk()?;
 
     let dial = DialDevice::new(std::time::Duration::from_millis(750))?;
-    println!("Found the dial.");
+    println!("Found the dial");
 
     std::thread::spawn(move || {
+        // TODO: use this persistent notification for the meta mode.
+
         let active_notification = Notification::new()
             .hint(Hint::Resident(true))
             .hint(Hint::Category("device".into()))
@@ -48,6 +53,7 @@ fn true_main() -> DynResult<()> {
 
     let mut controller = DialController::new(
         dial,
+        cfg.last_mode,
         vec![
             Box::new(controller::controls::ScrollZoom::new()),
             Box::new(controller::controls::Volume::new()),

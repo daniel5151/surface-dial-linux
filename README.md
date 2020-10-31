@@ -38,8 +38,7 @@ It would be cool to create some sort of GUI overlay (similar to the Windows one)
 - [x] Dynamically switch between operating modes
     - [x] Using some-sort of on-device mechanism (e.g: long-press)
     - [ ] Context-sensitive (based on currently open application)
-- [ ] Mode Persistence
-    - _At the moment, whenever the dial disconnects, the daemon is re-launched, which resets the active mode to the default one. It would be good to have some on-disk persistence to remember the last selected mode._
+- [x] Mode Persistence (keep mode when dial disconnects)
 - [x] Haptic Feedback
     - https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/radial-controller-protocol-implementation
     - https://www.usb.org/sites/default/files/hutrr63b_-_haptics_page_redline_0.pdf

@@ -39,7 +39,11 @@ pub struct DialController {
 }
 
 impl DialController {
-    pub fn new(device: DialDevice, modes: Vec<Box<dyn ControlMode>>) -> DialController {
+    pub fn new(
+        device: DialDevice,
+        initial_mode: usize,
+        modes: Vec<Box<dyn ControlMode>>,
+    ) -> DialController {
         let metas = modes.iter().map(|m| m.meta()).collect();
 
         let new_mode = Arc::new(Mutex::new(None));
@@ -48,7 +52,7 @@ impl DialController {
             device,
 
             modes,
-            active_mode: ActiveMode::Normal(0),
+            active_mode: ActiveMode::Normal(initial_mode),
 
             new_mode: new_mode.clone(),
             meta_mode: Box::new(MetaMode::new(new_mode, 0, metas)),
@@ -162,9 +166,14 @@ impl ControlMode for MetaMode {
             self.first_release = false;
         } else {
             *self.new_mode.lock().unwrap() = Some(self.current_mode);
-            haptics.buzz(1)?;
+
+            crate::config::Config {
+                last_mode: self.current_mode,
+            }
+            .to_disk()?;
 
             self.notif.take().unwrap().close();
+            haptics.buzz(1)?;
         }
         Ok(())
     }

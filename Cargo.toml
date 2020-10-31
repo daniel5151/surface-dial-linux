@@ -5,6 +5,7 @@ authors = ["Daniel Prilik <danielprilik@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+directories = "3.0"
 # master includes a PR that implements `Send` for `Device` and `UInputDevice`
 evdev-rs = { git = "https://github.com/ndesh26/evdev-rs.git" }
 hidapi = { version = "1.2.3", default-features = false, features = ["linux-shared-hidraw"] }
