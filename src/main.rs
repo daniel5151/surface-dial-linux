@@ -58,7 +58,7 @@ fn true_main() -> DynResult<()> {
             Box::new(controller::controls::ScrollZoom::new()),
             Box::new(controller::controls::Volume::new()),
             Box::new(controller::controls::Media::new()),
-            Box::new(controller::controls::DPad::new()),
+            Box::new(controller::controls::Paddle::new()),
         ],
     );
 
