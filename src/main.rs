@@ -62,8 +62,8 @@ fn main() {
         println!("{}", e);
     }
 
-    kill_notif_tx.send(None).unwrap(); // silently shut down
-    handle.join().unwrap();
+    let _ = kill_notif_tx.send(None); // silently shut down
+    let _ = handle.join();
 }
 
 fn true_main(kill_notif_tx: mpsc::Sender<Option<(String, &'static str)>>) -> DynResult<()> {
@@ -78,9 +78,10 @@ fn true_main(kill_notif_tx: mpsc::Sender<Option<(String, &'static str)>>) -> Dyn
         let signals = Signals::new(&[SIGTERM, SIGINT]).unwrap();
         for sig in signals.forever() {
             eprintln!("received signal {:?}", sig);
-            kill_notif_tx
-                .send(Some(("Terminated!".into(), "dialog-warning")))
-                .unwrap();
+            match kill_notif_tx.send(Some(("Terminated!".into(), "dialog-warning"))) {
+                Ok(_) => {}
+                Err(_) => std::process::exit(1),
+            }
         }
     });
 
@@ -88,6 +89,7 @@ fn true_main(kill_notif_tx: mpsc::Sender<Option<(String, &'static str)>>) -> Dyn
         dial,
         cfg.last_mode,
         vec![
+            // Box::new(controller::controls::ScrollMT::new()),
             Box::new(controller::controls::Scroll::new()),
             Box::new(controller::controls::Zoom::new()),
             Box::new(controller::controls::Volume::new()),
