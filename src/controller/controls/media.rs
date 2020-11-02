@@ -41,11 +41,11 @@ impl ControlMode for Media {
 
     fn on_dial(&mut self, _: &DialHaptics, delta: i32) -> DynResult<()> {
         if delta > 0 {
-            eprintln!("last song");
-            self.fake_input.key_click(&[EV_KEY::KEY_PREVIOUSSONG])?;
-        } else {
             eprintln!("next song");
             self.fake_input.key_click(&[EV_KEY::KEY_NEXTSONG])?;
+        } else {
+            eprintln!("last song");
+            self.fake_input.key_click(&[EV_KEY::KEY_PREVIOUSSONG])?;
         }
         Ok(())
     }
