@@ -1,32 +1,30 @@
 use crate::controller::{ControlMode, ControlModeMeta};
 use crate::dial_device::DialHaptics;
-use crate::fake_input::FakeInput;
+use crate::fake_input::{FakeInput, ScrollStep};
 use crate::DynResult;
 
-use evdev_rs::enums::EV_KEY;
-
-pub struct Media {
+pub struct Scroll {
     fake_input: FakeInput,
 }
 
-impl Media {
-    pub fn new() -> Media {
-        Media {
+impl Scroll {
+    pub fn new() -> Scroll {
+        Scroll {
             fake_input: FakeInput::new(),
         }
     }
 }
 
-impl ControlMode for Media {
+impl ControlMode for Scroll {
     fn meta(&self) -> ControlModeMeta {
         ControlModeMeta {
-            name: "Media",
-            icon: "applications-multimedia",
+            name: "Scroll",
+            icon: "input-mouse",
         }
     }
 
     fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()> {
-        haptics.set_mode(true, Some(36))?;
+        haptics.set_mode(false, Some(90))?;
         Ok(())
     }
 
@@ -34,19 +32,19 @@ impl ControlMode for Media {
         Ok(())
     }
 
-    fn on_btn_release(&mut self, _: &DialHaptics) -> DynResult<()> {
-        self.fake_input.key_click(&[EV_KEY::KEY_PLAYPAUSE])?;
+    fn on_btn_release(&mut self, _haptics: &DialHaptics) -> DynResult<()> {
         Ok(())
     }
 
     fn on_dial(&mut self, _: &DialHaptics, delta: i32) -> DynResult<()> {
         if delta > 0 {
-            eprintln!("last song");
-            self.fake_input.key_click(&[EV_KEY::KEY_PREVIOUSSONG])?;
+            eprintln!("scroll down");
+            self.fake_input.scroll_step(ScrollStep::Down)?;
         } else {
-            eprintln!("next song");
-            self.fake_input.key_click(&[EV_KEY::KEY_NEXTSONG])?;
+            eprintln!("scroll up");
+            self.fake_input.scroll_step(ScrollStep::Up)?;
         }
+
         Ok(())
     }
 }

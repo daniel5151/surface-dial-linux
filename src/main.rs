@@ -1,6 +1,6 @@
 #![allow(clippy::collapsible_if, clippy::new_without_default)]
 
-mod common;
+pub mod common;
 mod config;
 pub mod controller;
 mod dial_device;
@@ -88,7 +88,8 @@ fn true_main(kill_notif_tx: mpsc::Sender<Option<(String, &'static str)>>) -> Dyn
         dial,
         cfg.last_mode,
         vec![
-            Box::new(controller::controls::ScrollZoom::new()),
+            Box::new(controller::controls::Scroll::new()),
+            Box::new(controller::controls::Zoom::new()),
             Box::new(controller::controls::Volume::new()),
             Box::new(controller::controls::Media::new()),
             Box::new(controller::controls::Paddle::new()),

@@ -31,7 +31,7 @@ impl ControlMode for Volume {
     }
 
     fn on_btn_press(&mut self, _: &DialHaptics) -> DynResult<()> {
-        // TODO: support double-click to mute
+        // TODO: support double-click to play/pause
         Ok(())
     }
 
