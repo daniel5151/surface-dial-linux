@@ -2,17 +2,11 @@
 
 A Linux userspace controller for the [Microsoft Surface Dial](https://www.microsoft.com/en-us/p/surface-dial/925r551sktgn). Requires Linux Kernel 4.19 or higher.
 
-- Uses the [`evdev`](https://en.wikipedia.org/wiki/Evdev) API + `libevdev` to read events from the surface dial.
-- Uses `libevdev` to fake input via `/dev/uinput` (for keypresses / media controls)
-- Uses `hidapi` to configure dial sensitivity + haptics
-
-**DISCLAIMER: This is WIP software!**
+**DISCLAIMER: This software is still under active development!**
 
 Things will change.
 Things will break.
 Things are probably buggy.
-
-There's also a non-zero chance that I'll just stop working on it at some point once I decide that it's Good Enough:tm: for me.
 
 You've been warned :eyes:
 
@@ -25,6 +19,13 @@ Aside from haptic feedback, the daemon also uses FreeDesktop notifications to pr
 ![](notif-demo.gif)
 
 It would be cool to create some sort of GUI overlay (similar to the Windows one), though that's out of scope at the moment.
+
+## Implementation
+
+- `libevdev` to read events from the surface dial via `/dev/input/eventXX`
+- `libevdev` to fake input via `/dev/uinput` (for keypresses / media controls)
+- `hidapi` to configure dial sensitivity + haptics
+- `notify-rust` to send notifications over D-Bus
 
 ## Functionality
 
@@ -71,7 +72,7 @@ sudo apt install libevdev-dev libhidapi-dev
 
 ## Building
 
-`surface-dial-daemon` uses the bog-standard `cargo build` flow.
+`surface-dial-daemon` uses the standard `cargo build` flow.
 
 ```bash
 cargo build -p surface-dial-daemon --release
@@ -79,24 +80,13 @@ cargo build -p surface-dial-daemon --release
 
 The resulting binary is output to `target/release/surface-dial-daemon`
 
-## Running `surface-dial-daemon`
-
-For testing changes locally, you'll typically want to run the following:
-
-```bash
-cargo build -p surface-dial-daemon && sudo target/debug/surface-dial-daemon
-```
-
-Note the use of `sudo`, as `surface-dial-daemon` requires permission to access files under `/dev/input/` and `/dev/uinput`.
-
 ## Installation
 
-As you might have noticed, the daemon dies whenever the Surface Dial disconnects (which happens after a brief period of inactivity).
+At the moment, the daemon dies whenever the Surface Dial disconnects (which naturally happens after a brief period of inactivity).
 
-I personally haven't figured out a good way to have the daemon gracefully handle the dial connecting/disconnecting (PRs appreciated!), so instead, I've come up with a [cunning plan](https://www.youtube.com/watch?v=AsXKS8Nyu8Q) to spawn the daemon whenever the Surface Dial connects :wink:
+Instead of doing the Right Thing :tm: and having the daemon detect when the dial connects/disconnects (PRs appreciated!), I've come up with a [cunning plan](https://www.youtube.com/watch?v=AsXKS8Nyu8Q) to spawn the daemon whenever the Surface Dial connects.
 
 This will only work on systems with `systemd`.
-If your distro doesn't use `systemd`, you'll have to come up with something yourself I'm afraid...
 
 ```bash
 # Install the `surface-dial-daemon` (i.e: build it, and place it under ~/.cargo/bin/surface-dial-daemon)
