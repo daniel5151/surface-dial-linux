@@ -60,7 +60,11 @@ impl DialController {
     }
 
     pub fn run(&mut self) -> DynResult<()> {
-        self.modes[0].on_start(self.device.haptics())?;
+        let initial_mode = match self.active_mode {
+            ActiveMode::Normal(i) => i,
+            ActiveMode::Meta => 0,
+        };
+        self.modes[initial_mode].on_start(self.device.haptics())?;
 
         loop {
             let evt = self.device.next_event()?;
@@ -182,8 +186,12 @@ impl ControlMode for MetaMode {
         if delta > 0 {
             self.current_mode += 1;
         } else {
-            self.current_mode -= 1;
-        }
+            if self.current_mode == 0 {
+                self.current_mode = self.metas.len() - 1;
+            } else {
+                self.current_mode -= 1;
+            }
+        };
 
         self.current_mode %= self.metas.len();
 
