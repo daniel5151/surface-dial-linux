@@ -2,7 +2,7 @@ use std::fs;
 use std::sync::mpsc;
 use std::time::Duration;
 
-use evdev_rs::{Device, InputEvent};
+use evdev_rs::{Device, InputEvent, ReadStatus};
 use hidapi::{HidApi, HidDevice};
 
 use crate::error::Error;
@@ -10,7 +10,7 @@ use crate::error::Error;
 pub struct DialDevice {
     long_press_timeout: Duration,
     haptics: DialHaptics,
-    events: mpsc::Receiver<DialEvent>,
+    events: mpsc::Receiver<std::io::Result<(ReadStatus, InputEvent)>>,
 
     possible_long_press: bool,
 }
@@ -75,17 +75,10 @@ impl DialDevice {
 
         std::thread::spawn({
             let events = events_tx;
-            move || {
-                loop {
-                    let (_axis_status, axis_evt) = axis
-                        .next_event(evdev_rs::ReadFlag::NORMAL)
-                        .expect("Error::Evdev");
-                    // assert!(matches!(axis_status, ReadStatus::Success));
-                    let event = DialEvent::from_raw_evt(axis_evt.clone())
-                        .expect("Error::UnexpectedEvt(axis_evt)");
-
-                    events.send(event).expect("failed to send axis event");
-                }
+            move || loop {
+                events
+                    .send(axis.next_event(evdev_rs::ReadFlag::NORMAL))
+                    .expect("failed to send axis event");
             }
         });
 
@@ -108,7 +101,10 @@ impl DialDevice {
         };
 
         let event = match evt {
-            Ok(event) => {
+            Ok(Ok((_event_status, event))) => {
+                // assert!(matches!(axis_status, ReadStatus::Success));
+                let event =
+                    DialEvent::from_raw_evt(event.clone()).ok_or(Error::UnexpectedEvt(event))?;
                 match event.kind {
                     DialEventKind::ButtonPress => self.possible_long_press = true,
                     DialEventKind::ButtonRelease => self.possible_long_press = false,
@@ -116,6 +112,7 @@ impl DialDevice {
                 }
                 event
             }
+            Ok(Err(e)) => return Err(Error::Evdev(e)),
             Err(mpsc::RecvTimeoutError::Timeout) => {
                 self.possible_long_press = false;
                 DialEvent {

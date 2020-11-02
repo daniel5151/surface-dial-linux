@@ -145,7 +145,7 @@ dependencies = [
 [[package]]
 name = "evdev-rs"
 version = "0.4.0"
-source = "git+https://github.com/ndesh26/evdev-rs.git#8e995b8bfc1f8ed844ae47edaa4286c99e8c88b5"
+source = "git+https://github.com/ndesh26/evdev-rs.git?rev=8e995b8bf#8e995b8bfc1f8ed844ae47edaa4286c99e8c88b5"
 dependencies = [
  "bitflags 1.2.1",
  "evdev-sys",
@@ -156,7 +156,7 @@ dependencies = [
 [[package]]
 name = "evdev-sys"
 version = "0.2.1"
-source = "git+https://github.com/ndesh26/evdev-rs.git#8e995b8bfc1f8ed844ae47edaa4286c99e8c88b5"
+source = "git+https://github.com/ndesh26/evdev-rs.git?rev=8e995b8bf#8e995b8bfc1f8ed844ae47edaa4286c99e8c88b5"
 dependencies = [
  "cc",
  "libc",
