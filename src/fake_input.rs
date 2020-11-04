@@ -4,6 +4,11 @@ use evdev_rs::enums::*;
 use evdev_rs::{Device, InputEvent, TimeVal, UInputDevice};
 use parking_lot::ReentrantMutex;
 
+// this should be a fairly high number, as the axis is from 0..(MT_BASELINE*2)
+const MT_BASELINE: i32 = std::i32::MAX / 4;
+// higher = more sensitive
+const MT_SENSITIVITY: i32 = 64;
+
 lazy_static::lazy_static! {
     static ref FAKE_KEYBOARD: ReentrantMutex<UInputDevice> = {
         (|| -> io::Result<_> {
@@ -90,20 +95,19 @@ lazy_static::lazy_static! {
                     Some(&abs_info),
                 )?;
 
-                // higher = more sensitive
-                const SENSITIVITY: i32 = 64;
-
+                abs_info.resolution = MT_SENSITIVITY;
                 abs_info.minimum = 0;
-                abs_info.maximum = std::i32::MAX;
-                abs_info.resolution = SENSITIVITY;
+                abs_info.maximum = MT_BASELINE * 2;
+                abs_info.value = MT_BASELINE;
                 device.enable_event_code(
                     &EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X),
                     Some(&abs_info),
                 )?;
 
+                abs_info.value = MT_BASELINE;
                 abs_info.minimum = 0;
-                abs_info.maximum = std::i32::MAX;
-                abs_info.resolution = SENSITIVITY;
+                abs_info.maximum = MT_BASELINE * 2;
+                abs_info.resolution = MT_SENSITIVITY;
                 device.enable_event_code(
                     &EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y),
                     Some(&abs_info),
@@ -232,7 +236,7 @@ impl FakeInput {
         {
             touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 1))?;
             touchpad.write_event(&input_event!(EV_ABS, ABS_MT_TRACKING_ID, 2))?;
-            touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_X, std::i32::MAX / 3))?;
+            touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_X, MT_BASELINE / 2))?;
             touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_Y, MT_BASELINE))?;
 
             touchpad.write_event(&input_event!(EV_KEY, BTN_TOOL_FINGER, 0))?;
@@ -283,8 +287,6 @@ impl FakeInput {
         Ok(())
     }
 }
-
-const MT_BASELINE: i32 = std::i32::MAX / 2;
 
 pub enum ScrollStep {
     Up,
