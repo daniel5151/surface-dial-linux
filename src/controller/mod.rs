@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::dial_device::{DialDevice, DialEventKind, DialHaptics};
-use crate::DynResult;
+use crate::error::{Error, Result};
 
 pub mod controls;
 
@@ -13,14 +13,14 @@ pub struct ControlModeMeta {
 pub trait ControlMode {
     fn meta(&self) -> ControlModeMeta;
 
-    fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()>;
-    fn on_end(&mut self, _haptics: &DialHaptics) -> DynResult<()> {
+    fn on_start(&mut self, haptics: &DialHaptics) -> Result<()>;
+    fn on_end(&mut self, _haptics: &DialHaptics) -> Result<()> {
         Ok(())
     }
 
-    fn on_btn_press(&mut self, haptics: &DialHaptics) -> DynResult<()>;
-    fn on_btn_release(&mut self, haptics: &DialHaptics) -> DynResult<()>;
-    fn on_dial(&mut self, haptics: &DialHaptics, delta: i32) -> DynResult<()>;
+    fn on_btn_press(&mut self, haptics: &DialHaptics) -> Result<()>;
+    fn on_btn_release(&mut self, haptics: &DialHaptics) -> Result<()>;
+    fn on_dial(&mut self, haptics: &DialHaptics, delta: i32) -> Result<()>;
 }
 
 enum ActiveMode {
@@ -59,7 +59,7 @@ impl DialController {
         }
     }
 
-    pub fn run(&mut self) -> DynResult<()> {
+    pub fn run(&mut self) -> Result<()> {
         let initial_mode = match self.active_mode {
             ActiveMode::Normal(i) => i,
             ActiveMode::Meta => 0,
@@ -137,7 +137,7 @@ impl ControlMode for MetaMode {
         unreachable!() // meta mode never queries itself
     }
 
-    fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()> {
+    fn on_start(&mut self, haptics: &DialHaptics) -> Result<()> {
         use notify_rust::*;
         self.notif = Some(
             Notification::new()
@@ -150,7 +150,8 @@ impl ControlMode for MetaMode {
                     self.metas[self.current_mode].name
                 ))
                 .icon("emblem-system")
-                .show()?,
+                .show()
+                .map_err(Error::Notif)?,
         );
 
         haptics.buzz(1)?;
@@ -161,11 +162,11 @@ impl ControlMode for MetaMode {
         Ok(())
     }
 
-    fn on_btn_press(&mut self, _haptics: &DialHaptics) -> DynResult<()> {
+    fn on_btn_press(&mut self, _haptics: &DialHaptics) -> Result<()> {
         Ok(())
     }
 
-    fn on_btn_release(&mut self, haptics: &DialHaptics) -> DynResult<()> {
+    fn on_btn_release(&mut self, haptics: &DialHaptics) -> Result<()> {
         if self.first_release {
             self.first_release = false;
         } else {
@@ -182,7 +183,7 @@ impl ControlMode for MetaMode {
         Ok(())
     }
 
-    fn on_dial(&mut self, _haptics: &DialHaptics, delta: i32) -> DynResult<()> {
+    fn on_dial(&mut self, _haptics: &DialHaptics, delta: i32) -> Result<()> {
         if delta > 0 {
             self.current_mode += 1;
         } else {

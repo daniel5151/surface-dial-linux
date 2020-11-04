@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use crate::controller::{ControlMode, ControlModeMeta};
 use crate::dial_device::DialHaptics;
+use crate::error::Result;
 use crate::fake_input::FakeInput;
-use crate::DynResult;
 
 use evdev_rs::enums::EV_KEY;
 
@@ -152,29 +152,29 @@ impl ControlMode for Paddle {
         }
     }
 
-    fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()> {
+    fn on_start(&mut self, haptics: &DialHaptics) -> Result<()> {
         haptics.set_mode(false, Some(3600))?;
-        self.msg.send(Msg::Enabled(true))?;
+        let _ = self.msg.send(Msg::Enabled(true));
         Ok(())
     }
 
-    fn on_end(&mut self, _haptics: &DialHaptics) -> DynResult<()> {
-        self.msg.send(Msg::Enabled(false))?;
+    fn on_end(&mut self, _haptics: &DialHaptics) -> Result<()> {
+        let _ = self.msg.send(Msg::Enabled(false));
         Ok(())
     }
 
-    fn on_btn_press(&mut self, _: &DialHaptics) -> DynResult<()> {
-        self.msg.send(Msg::ButtonDown)?;
+    fn on_btn_press(&mut self, _: &DialHaptics) -> Result<()> {
+        let _ = self.msg.send(Msg::ButtonDown);
         Ok(())
     }
 
-    fn on_btn_release(&mut self, _: &DialHaptics) -> DynResult<()> {
-        self.msg.send(Msg::ButtonUp)?;
+    fn on_btn_release(&mut self, _: &DialHaptics) -> Result<()> {
+        let _ = self.msg.send(Msg::ButtonUp);
         Ok(())
     }
 
-    fn on_dial(&mut self, _: &DialHaptics, delta: i32) -> DynResult<()> {
-        self.msg.send(Msg::Delta(delta))?;
+    fn on_dial(&mut self, _: &DialHaptics, delta: i32) -> Result<()> {
+        let _ = self.msg.send(Msg::Delta(delta));
         Ok(())
     }
 }

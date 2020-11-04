@@ -7,13 +7,11 @@ mod dial_device;
 mod error;
 mod fake_input;
 
-pub type DynResult<T> = Result<T, Box<dyn std::error::Error>>;
-
 use std::sync::mpsc;
 
 use crate::controller::DialController;
 use crate::dial_device::DialDevice;
-use crate::error::Error;
+use crate::error::Result;
 
 use notify_rust::{Hint, Notification, Timeout};
 use signal_hook::{iterator::Signals, SIGINT, SIGTERM};
@@ -58,7 +56,21 @@ fn main() {
         std::process::exit(1);
     });
 
-    if let Err(e) = true_main(kill_notif_tx.clone()) {
+    std::thread::spawn({
+        let kill_notif_tx = kill_notif_tx.clone();
+        move || {
+            let signals = Signals::new(&[SIGTERM, SIGINT]).unwrap();
+            for sig in signals.forever() {
+                eprintln!("received signal {:?}", sig);
+                match kill_notif_tx.send(Some(("Terminated!".into(), "dialog-warning"))) {
+                    Ok(_) => {}
+                    Err(_) => std::process::exit(1),
+                }
+            }
+        }
+    });
+
+    if let Err(e) = true_main() {
         println!("{}", e);
     }
 
@@ -66,24 +78,13 @@ fn main() {
     let _ = handle.join();
 }
 
-fn true_main(kill_notif_tx: mpsc::Sender<Option<(String, &'static str)>>) -> DynResult<()> {
+fn true_main() -> Result<()> {
     println!("Started");
 
     let cfg = config::Config::from_disk()?;
 
     let dial = DialDevice::new(std::time::Duration::from_millis(750))?;
     println!("Found the dial");
-
-    std::thread::spawn(move || {
-        let signals = Signals::new(&[SIGTERM, SIGINT]).unwrap();
-        for sig in signals.forever() {
-            eprintln!("received signal {:?}", sig);
-            match kill_notif_tx.send(Some(("Terminated!".into(), "dialog-warning"))) {
-                Ok(_) => {}
-                Err(_) => std::process::exit(1),
-            }
-        }
-    });
 
     let mut controller = DialController::new(
         dial,

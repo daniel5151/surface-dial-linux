@@ -5,7 +5,7 @@ use std::time::Duration;
 use evdev_rs::{Device, InputEvent, ReadStatus};
 use hidapi::{HidApi, HidDevice};
 
-use crate::error::Error;
+use crate::error::{Error, Result};
 
 pub struct DialDevice {
     long_press_timeout: Duration,
@@ -31,7 +31,7 @@ pub enum DialEventKind {
 }
 
 impl DialDevice {
-    pub fn new(long_press_timeout: Duration) -> Result<DialDevice, crate::Error> {
+    pub fn new(long_press_timeout: Duration) -> Result<DialDevice> {
         let mut control = None;
         let mut axis = None;
 
@@ -72,13 +72,13 @@ impl DialDevice {
         let (events_tx, events_rx) = mpsc::channel();
 
         // TODO: interleave control events with regular events
+        // (once we figure out what control events actually do...)
 
+        // inb4 "y not async/await"
         std::thread::spawn({
             let events = events_tx;
             move || loop {
-                events
-                    .send(axis.next_event(evdev_rs::ReadFlag::NORMAL))
-                    .expect("failed to send axis event");
+                let _ = events.send(axis.next_event(evdev_rs::ReadFlag::NORMAL));
             }
         });
 
@@ -91,7 +91,7 @@ impl DialDevice {
         })
     }
 
-    pub fn next_event(&mut self) -> Result<DialEvent, Error> {
+    pub fn next_event(&mut self) -> Result<DialEvent> {
         let evt = if self.possible_long_press {
             self.events.recv_timeout(self.long_press_timeout)
         } else {
@@ -166,7 +166,7 @@ pub struct DialHaptics {
 }
 
 impl DialHaptics {
-    fn new() -> Result<DialHaptics, Error> {
+    fn new() -> Result<DialHaptics> {
         let api = HidApi::new().map_err(Error::HidError)?;
         let hid_device = api.open(0x045e, 0x091b).map_err(|_| Error::MissingDial)?;
 
@@ -190,7 +190,7 @@ impl DialHaptics {
     /// `steps` should be a value between 0 and 3600, which corresponds to the
     /// number of subdivisions the dial should use. If left unspecified, this
     /// defaults to 36 (an arbitrary choice that "feels good" most of the time)
-    pub fn set_mode(&self, haptics: bool, steps: Option<u16>) -> Result<(), Error> {
+    pub fn set_mode(&self, haptics: bool, steps: Option<u16>) -> Result<()> {
         let steps = steps.unwrap_or(36);
         assert!(steps <= 3600);
 
@@ -213,7 +213,7 @@ impl DialHaptics {
         Ok(())
     }
 
-    pub fn buzz(&self, repeat: u8) -> Result<(), Error> {
+    pub fn buzz(&self, repeat: u8) -> Result<()> {
         let mut buf = [0; 5];
         buf[0] = 0x01; // Report ID
         buf[1] = repeat; // RepeatCount

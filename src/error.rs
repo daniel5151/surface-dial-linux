@@ -3,8 +3,11 @@ use std::io;
 
 use evdev_rs::InputEvent;
 
+pub type Result<T> = std::result::Result<T, Error>;
+
 #[derive(Debug)]
 pub enum Error {
+    ConfigFile(String),
     OpenDevInputDir(io::Error),
     OpenEventFile(std::path::PathBuf, io::Error),
     HidError(hidapi::HidError),
@@ -12,12 +15,13 @@ pub enum Error {
     MultipleDials,
     UnexpectedEvt(InputEvent),
     Evdev(io::Error),
-    Io(io::Error),
+    Notif(notify_rust::error::Error),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Error::ConfigFile(e) => write!(f, "Could not open config file: {}", e),
             Error::OpenDevInputDir(e) => write!(f, "Could not open /dev/input directory: {}", e),
             Error::OpenEventFile(path, e) => write!(f, "Could not open {:?}: {}", path, e),
             Error::HidError(e) => write!(f, "HID API Error: {}", e),
@@ -25,7 +29,7 @@ impl fmt::Display for Error {
             Error::MultipleDials => write!(f, "Found multiple dials"),
             Error::UnexpectedEvt(evt) => write!(f, "Unexpected event: {:?}", evt),
             Error::Evdev(e) => write!(f, "Evdev error: {}", e),
-            Error::Io(e) => write!(f, "Io error: {}", e),
+            Error::Notif(e) => write!(f, "Notification error: {}", e),
         }
     }
 }

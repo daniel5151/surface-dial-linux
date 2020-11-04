@@ -1,6 +1,6 @@
 use crate::controller::{ControlMode, ControlModeMeta};
 use crate::dial_device::DialHaptics;
-use crate::DynResult;
+use crate::error::Result;
 
 impl ControlMode for () {
     fn meta(&self) -> ControlModeMeta {
@@ -10,20 +10,20 @@ impl ControlMode for () {
         }
     }
 
-    fn on_start(&mut self, haptics: &DialHaptics) -> DynResult<()> {
+    fn on_start(&mut self, haptics: &DialHaptics) -> Result<()> {
         haptics.set_mode(false, Some(0))?;
         Ok(())
     }
 
-    fn on_btn_press(&mut self, _haptics: &DialHaptics) -> DynResult<()> {
+    fn on_btn_press(&mut self, _haptics: &DialHaptics) -> Result<()> {
         Ok(())
     }
 
-    fn on_btn_release(&mut self, _haptics: &DialHaptics) -> DynResult<()> {
+    fn on_btn_release(&mut self, _haptics: &DialHaptics) -> Result<()> {
         Ok(())
     }
 
-    fn on_dial(&mut self, _haptics: &DialHaptics, _delta: i32) -> DynResult<()> {
+    fn on_dial(&mut self, _haptics: &DialHaptics, _delta: i32) -> Result<()> {
         Ok(())
     }
 }
