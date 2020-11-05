@@ -16,6 +16,7 @@ pub enum Error {
     UnexpectedEvt(InputEvent),
     Evdev(io::Error),
     Notif(notify_rust::error::Error),
+    TermSig,
 }
 
 impl fmt::Display for Error {
@@ -30,6 +31,7 @@ impl fmt::Display for Error {
             Error::UnexpectedEvt(evt) => write!(f, "Unexpected event: {:?}", evt),
             Error::Evdev(e) => write!(f, "Evdev error: {}", e),
             Error::Notif(e) => write!(f, "Notification error: {}", e),
+            Error::TermSig => write!(f, "Received termination signal (either SIGTERM or SIGINT)"),
         }
     }
 }

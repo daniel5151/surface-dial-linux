@@ -6,7 +6,7 @@ use std::time::Duration;
 use crate::controller::{ControlMode, ControlModeMeta};
 use crate::dial_device::DialHaptics;
 use crate::error::Result;
-use crate::fake_input::FakeInput;
+use crate::fake_input;
 
 use evdev_rs::enums::EV_KEY;
 
@@ -23,7 +23,6 @@ enum Msg {
 
 struct Worker {
     msg: mpsc::Receiver<Msg>,
-    fake_input: FakeInput,
 
     timeout: u64,
     falloff: i32,
@@ -39,7 +38,6 @@ impl Worker {
     pub fn new(msg: mpsc::Receiver<Msg>) -> Worker {
         Worker {
             msg,
-            fake_input: FakeInput::new(),
 
             // tweak these for "feel"
             timeout: 5,
@@ -70,13 +68,16 @@ impl Worker {
                 Ok(Msg::Enabled(enabled)) => {
                     self.enabled = enabled;
                     if !enabled {
-                        self.fake_input
-                            .key_release(&[EV_KEY::KEY_SPACE, EV_KEY::KEY_LEFT, EV_KEY::KEY_RIGHT])
-                            .unwrap()
+                        fake_input::key_release(&[
+                            EV_KEY::KEY_SPACE,
+                            EV_KEY::KEY_LEFT,
+                            EV_KEY::KEY_RIGHT,
+                        ])
+                        .unwrap()
                     }
                 }
-                Ok(Msg::ButtonDown) => self.fake_input.key_press(&[EV_KEY::KEY_SPACE]).unwrap(),
-                Ok(Msg::ButtonUp) => self.fake_input.key_release(&[EV_KEY::KEY_SPACE]).unwrap(),
+                Ok(Msg::ButtonDown) => fake_input::key_press(&[EV_KEY::KEY_SPACE]).unwrap(),
+                Ok(Msg::ButtonUp) => fake_input::key_release(&[EV_KEY::KEY_SPACE]).unwrap(),
                 Ok(Msg::Delta(delta)) => {
                     // abrupt direction change!
                     if (delta < 0) != (self.last_delta < 0) {
@@ -102,16 +103,14 @@ impl Worker {
             }
 
             if self.velocity.abs() < self.deadzone {
-                self.fake_input
-                    .key_release(&[EV_KEY::KEY_LEFT, EV_KEY::KEY_RIGHT])
-                    .unwrap();
+                fake_input::key_release(&[EV_KEY::KEY_LEFT, EV_KEY::KEY_RIGHT]).unwrap();
                 continue;
             }
 
             match self.velocity.cmp(&0) {
                 Ordering::Equal => {}
-                Ordering::Less => self.fake_input.key_press(&[EV_KEY::KEY_LEFT]).unwrap(),
-                Ordering::Greater => self.fake_input.key_press(&[EV_KEY::KEY_RIGHT]).unwrap(),
+                Ordering::Less => fake_input::key_press(&[EV_KEY::KEY_LEFT]).unwrap(),
+                Ordering::Greater => fake_input::key_press(&[EV_KEY::KEY_RIGHT]).unwrap(),
             }
 
             // eprintln!("{:?}", self.velocity);

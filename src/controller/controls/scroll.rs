@@ -1,17 +1,13 @@
 use crate::controller::{ControlMode, ControlModeMeta};
 use crate::dial_device::DialHaptics;
 use crate::error::{Error, Result};
-use crate::fake_input::{FakeInput, ScrollStep};
+use crate::fake_input::{self, ScrollStep};
 
-pub struct Scroll {
-    fake_input: FakeInput,
-}
+pub struct Scroll {}
 
 impl Scroll {
     pub fn new() -> Scroll {
-        Scroll {
-            fake_input: FakeInput::new(),
-        }
+        Scroll {}
     }
 }
 
@@ -39,14 +35,10 @@ impl ControlMode for Scroll {
     fn on_dial(&mut self, _: &DialHaptics, delta: i32) -> Result<()> {
         if delta > 0 {
             eprintln!("scroll down");
-            self.fake_input
-                .scroll_step(ScrollStep::Down)
-                .map_err(Error::Evdev)?;
+            fake_input::scroll_step(ScrollStep::Down).map_err(Error::Evdev)?;
         } else {
             eprintln!("scroll up");
-            self.fake_input
-                .scroll_step(ScrollStep::Up)
-                .map_err(Error::Evdev)?;
+            fake_input::scroll_step(ScrollStep::Up).map_err(Error::Evdev)?;
         }
 
         Ok(())

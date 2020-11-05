@@ -1,19 +1,15 @@
 use crate::controller::{ControlMode, ControlModeMeta};
 use crate::dial_device::DialHaptics;
 use crate::error::{Error, Result};
-use crate::fake_input::FakeInput;
+use crate::fake_input;
 
 use evdev_rs::enums::EV_KEY;
 
-pub struct Volume {
-    fake_input: FakeInput,
-}
+pub struct Volume {}
 
 impl Volume {
     pub fn new() -> Volume {
-        Volume {
-            fake_input: FakeInput::new(),
-        }
+        Volume {}
     }
 }
 
@@ -37,23 +33,19 @@ impl ControlMode for Volume {
 
     fn on_btn_release(&mut self, _: &DialHaptics) -> Result<()> {
         eprintln!("play/pause");
-        // self.fake_input.mute()?
-        self.fake_input
-            .key_click(&[EV_KEY::KEY_PLAYPAUSE])
-            .map_err(Error::Evdev)?;
+        // fake_input::mute()?
+        fake_input::key_click(&[EV_KEY::KEY_PLAYPAUSE]).map_err(Error::Evdev)?;
         Ok(())
     }
 
     fn on_dial(&mut self, _: &DialHaptics, delta: i32) -> Result<()> {
         if delta > 0 {
             eprintln!("volume up");
-            self.fake_input
-                .key_click(&[EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_VOLUMEUP])
+            fake_input::key_click(&[EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_VOLUMEUP])
                 .map_err(Error::Evdev)?;
         } else {
             eprintln!("volume down");
-            self.fake_input
-                .key_click(&[EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_VOLUMEDOWN])
+            fake_input::key_click(&[EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_VOLUMEDOWN])
                 .map_err(Error::Evdev)?;
         }
 

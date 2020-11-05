@@ -5,13 +5,18 @@ use evdev_rs::{Device, InputEvent, TimeVal, UInputDevice};
 use parking_lot::ReentrantMutex;
 
 // this should be a fairly high number, as the axis is from 0..(MT_BASELINE*2)
-const MT_BASELINE: i32 = std::i32::MAX / 4;
+const MT_BASELINE: i32 = std::i32::MAX / 8;
 // higher = more sensitive
 const MT_SENSITIVITY: i32 = 64;
 
+pub struct FakeInputs {
+    keyboard: ReentrantMutex<UInputDevice>,
+    touchpad: ReentrantMutex<UInputDevice>,
+}
+
 lazy_static::lazy_static! {
-    static ref FAKE_KEYBOARD: ReentrantMutex<UInputDevice> = {
-        (|| -> io::Result<_> {
+    pub static ref FAKE_INPUTS: FakeInputs = {
+        let keyboard = (|| -> io::Result<_> {
             let device = Device::new().unwrap();
             device.set_name("Surface Dial Virtual Keyboard/Mouse");
 
@@ -48,11 +53,9 @@ lazy_static::lazy_static! {
             }
 
             Ok(ReentrantMutex::new(UInputDevice::create_from_device(&device)?))
-        })().expect("failed to install virtual mouse/keyboard device")
-    };
+        })().expect("failed to install virtual mouse/keyboard device");
 
-    static ref FAKE_TOUCHPAD: ReentrantMutex<UInputDevice> = {
-        (|| -> io::Result<_> {
+        let touchpad = (|| -> io::Result<_> {
             let device = Device::new().unwrap();
             device.set_name("Surface Dial Virtual Touchpad");
 
@@ -115,13 +118,14 @@ lazy_static::lazy_static! {
             }
 
             Ok(ReentrantMutex::new(UInputDevice::create_from_device(&device)?))
-        })().expect("failed to install virtual touchpad device")
+        })().expect("failed to install virtual touchpad device");
+
+        FakeInputs {
+            keyboard,
+            touchpad
+        }
     };
-
 }
-
-#[non_exhaustive]
-pub struct FakeInput {}
 
 macro_rules! input_event {
     ($type:ident, $code:ident, $value:expr) => {
@@ -134,158 +138,146 @@ macro_rules! input_event {
     };
 }
 
-impl Default for FakeInput {
-    fn default() -> Self {
-        Self::new()
-    }
+fn kbd_syn_report() -> io::Result<()> {
+    (FAKE_INPUTS.keyboard.lock()).write_event(&input_event!(EV_SYN, SYN_REPORT, 0))
 }
 
-impl FakeInput {
-    pub fn new() -> FakeInput {
-        FakeInput {}
-    }
+pub fn key_click(keys: &[EV_KEY]) -> io::Result<()> {
+    key_press(keys)?;
+    key_release(keys)?;
+    Ok(())
+}
 
-    fn kbd_syn_report(&self) -> io::Result<()> {
-        (FAKE_KEYBOARD.lock()).write_event(&input_event!(EV_SYN, SYN_REPORT, 0))
-    }
+pub fn key_press(keys: &[EV_KEY]) -> io::Result<()> {
+    let keyboard = FAKE_INPUTS.keyboard.lock();
 
-    pub fn key_click(&self, keys: &[EV_KEY]) -> io::Result<()> {
-        self.key_press(keys)?;
-        self.key_release(keys)?;
-        Ok(())
-    }
-
-    pub fn key_press(&self, keys: &[EV_KEY]) -> io::Result<()> {
-        let keyboard = FAKE_KEYBOARD.lock();
-
-        for key in keys {
-            keyboard.write_event(&InputEvent {
-                time: TimeVal::new(0, 0),
-                event_code: EventCode::EV_KEY(*key),
-                event_type: EventType::EV_KEY,
-                value: 1,
-            })?;
-        }
-        self.kbd_syn_report()?;
-        Ok(())
-    }
-
-    pub fn key_release(&self, keys: &[EV_KEY]) -> io::Result<()> {
-        let keyboard = FAKE_KEYBOARD.lock();
-
-        for key in keys.iter().clone() {
-            keyboard.write_event(&InputEvent {
-                time: TimeVal::new(0, 0),
-                event_code: EventCode::EV_KEY(*key),
-                event_type: EventType::EV_KEY,
-                value: 0,
-            })?;
-        }
-        self.kbd_syn_report()?;
-        Ok(())
-    }
-
-    pub fn scroll_step(&self, dir: ScrollStep) -> io::Result<()> {
-        let keyboard = FAKE_KEYBOARD.lock();
-
-        // copied from my razer blackwidow chroma mouse
+    for key in keys {
         keyboard.write_event(&InputEvent {
             time: TimeVal::new(0, 0),
-            event_code: EventCode::EV_REL(EV_REL::REL_WHEEL),
-            event_type: EventType::EV_REL,
-            value: match dir {
-                ScrollStep::Down => -1,
-                ScrollStep::Up => 1,
-            },
+            event_code: EventCode::EV_KEY(*key),
+            event_type: EventType::EV_KEY,
+            value: 1,
         })?;
+    }
+    kbd_syn_report()?;
+    Ok(())
+}
+
+pub fn key_release(keys: &[EV_KEY]) -> io::Result<()> {
+    let keyboard = FAKE_INPUTS.keyboard.lock();
+
+    for key in keys.iter().clone() {
         keyboard.write_event(&InputEvent {
             time: TimeVal::new(0, 0),
-            event_code: EventCode::EV_REL(EV_REL::REL_WHEEL_HI_RES),
-            event_type: EventType::EV_REL,
-            value: match dir {
-                ScrollStep::Down => -120,
-                ScrollStep::Up => 120,
-            },
+            event_code: EventCode::EV_KEY(*key),
+            event_type: EventType::EV_KEY,
+            value: 0,
         })?;
-        self.kbd_syn_report()?;
-        Ok(())
     }
+    kbd_syn_report()?;
+    Ok(())
+}
 
-    fn touch_syn_report(&self) -> io::Result<()> {
-        (FAKE_TOUCHPAD.lock()).write_event(&input_event!(EV_SYN, SYN_REPORT, 0))
-    }
+pub fn scroll_step(dir: ScrollStep) -> io::Result<()> {
+    let keyboard = FAKE_INPUTS.keyboard.lock();
 
-    pub fn scroll_mt_start(&self) -> io::Result<()> {
-        let touchpad = FAKE_TOUCHPAD.lock();
+    // copied from my razer blackwidow chroma mouse
+    keyboard.write_event(&InputEvent {
+        time: TimeVal::new(0, 0),
+        event_code: EventCode::EV_REL(EV_REL::REL_WHEEL),
+        event_type: EventType::EV_REL,
+        value: match dir {
+            ScrollStep::Down => -1,
+            ScrollStep::Up => 1,
+        },
+    })?;
+    keyboard.write_event(&InputEvent {
+        time: TimeVal::new(0, 0),
+        event_code: EventCode::EV_REL(EV_REL::REL_WHEEL_HI_RES),
+        event_type: EventType::EV_REL,
+        value: match dir {
+            ScrollStep::Down => -120,
+            ScrollStep::Up => 120,
+        },
+    })?;
+    kbd_syn_report()?;
+    Ok(())
+}
 
-        {
-            touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 0))?;
-            touchpad.write_event(&input_event!(EV_ABS, ABS_MT_TRACKING_ID, 1))?;
-            touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_X, MT_BASELINE))?;
-            touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_Y, MT_BASELINE))?;
+fn touch_syn_report() -> io::Result<()> {
+    (FAKE_INPUTS.touchpad.lock()).write_event(&input_event!(EV_SYN, SYN_REPORT, 0))
+}
 
-            touchpad.write_event(&input_event!(EV_KEY, BTN_TOUCH, 1))?;
-            touchpad.write_event(&input_event!(EV_KEY, BTN_TOOL_FINGER, 1))?;
+pub fn scroll_mt_start() -> io::Result<()> {
+    let touchpad = FAKE_INPUTS.touchpad.lock();
 
-            touchpad.write_event(&input_event!(EV_ABS, ABS_X, MT_BASELINE))?;
-            touchpad.write_event(&input_event!(EV_ABS, ABS_Y, MT_BASELINE))?;
-        }
-
-        self.touch_syn_report()?;
-
-        {
-            touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 1))?;
-            touchpad.write_event(&input_event!(EV_ABS, ABS_MT_TRACKING_ID, 2))?;
-            touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_X, MT_BASELINE / 2))?;
-            touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_Y, MT_BASELINE))?;
-
-            touchpad.write_event(&input_event!(EV_KEY, BTN_TOOL_FINGER, 0))?;
-            touchpad.write_event(&input_event!(EV_KEY, BTN_TOOL_DOUBLETAP, 1))?;
-        }
-
-        self.touch_syn_report()?;
-
-        Ok(())
-    }
-
-    pub fn scroll_mt_step(&self, delta: i32) -> io::Result<()> {
-        let touchpad = FAKE_TOUCHPAD.lock();
-
+    {
         touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 0))?;
-        touchpad.write_event(&input_event!(
-            EV_ABS,
-            ABS_MT_POSITION_Y,
-            MT_BASELINE + delta
-        ))?;
-        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 1))?;
-        touchpad.write_event(&input_event!(
-            EV_ABS,
-            ABS_MT_POSITION_Y,
-            MT_BASELINE + delta
-        ))?;
+        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_TRACKING_ID, 1))?;
+        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_X, MT_BASELINE))?;
+        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_Y, MT_BASELINE))?;
 
-        touchpad.write_event(&input_event!(EV_ABS, ABS_Y, MT_BASELINE + delta))?;
+        touchpad.write_event(&input_event!(EV_KEY, BTN_TOUCH, 1))?;
+        touchpad.write_event(&input_event!(EV_KEY, BTN_TOOL_FINGER, 1))?;
 
-        self.touch_syn_report()?;
-
-        Ok(())
+        touchpad.write_event(&input_event!(EV_ABS, ABS_X, MT_BASELINE))?;
+        touchpad.write_event(&input_event!(EV_ABS, ABS_Y, MT_BASELINE))?;
     }
 
-    pub fn scroll_mt_end(&self) -> io::Result<()> {
-        let touchpad = FAKE_TOUCHPAD.lock();
+    touch_syn_report()?;
 
-        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 0))?;
-        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_TRACKING_ID, -1))?;
+    {
         touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 1))?;
-        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_TRACKING_ID, -1))?;
+        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_TRACKING_ID, 2))?;
+        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_X, MT_BASELINE / 2))?;
+        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_Y, MT_BASELINE))?;
 
-        touchpad.write_event(&input_event!(EV_KEY, BTN_TOUCH, 0))?;
-        touchpad.write_event(&input_event!(EV_KEY, BTN_TOOL_DOUBLETAP, 0))?;
-
-        self.touch_syn_report()?;
-
-        Ok(())
+        touchpad.write_event(&input_event!(EV_KEY, BTN_TOOL_FINGER, 0))?;
+        touchpad.write_event(&input_event!(EV_KEY, BTN_TOOL_DOUBLETAP, 1))?;
     }
+
+    touch_syn_report()?;
+
+    Ok(())
+}
+
+pub fn scroll_mt_step(delta: i32) -> io::Result<()> {
+    let touchpad = FAKE_INPUTS.touchpad.lock();
+
+    touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 0))?;
+    touchpad.write_event(&input_event!(
+        EV_ABS,
+        ABS_MT_POSITION_Y,
+        MT_BASELINE + delta
+    ))?;
+    touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 1))?;
+    touchpad.write_event(&input_event!(
+        EV_ABS,
+        ABS_MT_POSITION_Y,
+        MT_BASELINE + delta
+    ))?;
+
+    touchpad.write_event(&input_event!(EV_ABS, ABS_Y, MT_BASELINE + delta))?;
+
+    touch_syn_report()?;
+
+    Ok(())
+}
+
+pub fn scroll_mt_end() -> io::Result<()> {
+    let touchpad = FAKE_INPUTS.touchpad.lock();
+
+    touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 0))?;
+    touchpad.write_event(&input_event!(EV_ABS, ABS_MT_TRACKING_ID, -1))?;
+    touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 1))?;
+    touchpad.write_event(&input_event!(EV_ABS, ABS_MT_TRACKING_ID, -1))?;
+
+    touchpad.write_event(&input_event!(EV_KEY, BTN_TOUCH, 0))?;
+    touchpad.write_event(&input_event!(EV_KEY, BTN_TOOL_DOUBLETAP, 0))?;
+
+    touch_syn_report()?;
+
+    Ok(())
 }
 
 pub enum ScrollStep {

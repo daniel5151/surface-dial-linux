@@ -13,3 +13,13 @@ lazy_static = "1.4"
 notify-rust = "4"
 parking_lot = "0.11.0"
 signal-hook = "0.1.16"
+
+# HACK: Using >1 virtual uinput devices will segfault in release builds.
+#
+# While spooky, this isn't a show-stopper for us Pragmatic Programmers™, as we
+# can simply disable optimizations for `evdev-rs` and have things work Okay™.
+#
+# That said, I would like to find some time to narrow down why this is happening
+# and fix it. Maybe later...
+[profile.release.package.evdev-rs]
+opt-level = 0

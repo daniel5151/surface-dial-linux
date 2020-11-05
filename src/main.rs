@@ -11,38 +11,62 @@ use std::sync::mpsc;
 
 use crate::controller::DialController;
 use crate::dial_device::DialDevice;
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 use notify_rust::{Hint, Notification, Timeout};
 use signal_hook::{iterator::Signals, SIGINT, SIGTERM};
 
 fn main() {
-    let (kill_notif_tx, kill_notif_rx) = mpsc::channel::<Option<(String, &'static str)>>();
+    let (terminate_tx, terminate_rx) = mpsc::channel::<Result<()>>();
 
-    let handle = std::thread::spawn(move || {
-        let active_notification = Notification::new()
-            .hint(Hint::Resident(true))
-            .hint(Hint::Category("device".into()))
-            .timeout(Timeout::Never)
-            .summary("Surface Dial")
-            .body("Active!")
-            .icon("media-optical") // it should be vaguely circular :P
-            .show()
-            .expect("failed to send notification");
-
-        let kill_notif = kill_notif_rx.recv();
-
-        active_notification.close();
-
-        let (msg, icon) = match kill_notif {
-            Ok(None) => {
-                // shutdown immediately
-                std::process::exit(1);
+    std::thread::spawn({
+        let terminate_tx = terminate_tx.clone();
+        move || {
+            let signals = Signals::new(&[SIGTERM, SIGINT]).unwrap();
+            for sig in signals.forever() {
+                eprintln!("received signal {:?}", sig);
+                let _ = terminate_tx.send(Err(Error::TermSig));
             }
-            Ok(Some((msg, icon))) => (msg, icon),
-            Err(_) => ("Unexpected Error".into(), "dialog-error"),
-        };
+        }
+    });
 
+    std::thread::spawn({
+        let terminate_tx = terminate_tx;
+        move || {
+            let _ = terminate_tx.send(controller_main());
+        }
+    });
+
+    let active_notification = Notification::new()
+        .hint(Hint::Resident(true))
+        .hint(Hint::Category("device".into()))
+        .timeout(Timeout::Never)
+        .summary("Surface Dial")
+        .body("Active!")
+        .icon("media-optical") // it should be vaguely circular :P
+        .show()
+        .expect("Failed to send notification. NOTE: this daemon (probably) can't run as root!");
+
+    let (silent, msg, icon) = match terminate_rx.recv() {
+        Ok(Ok(())) => (true, "".into(), ""),
+        Ok(Err(e)) => {
+            println!("Error: {}", e);
+            match e {
+                Error::TermSig => (false, "Terminated!".into(), "dialog-warning"),
+                // HACK: silently exit if the dial disconnects
+                Error::Evdev(e) if e.raw_os_error() == Some(19) => (true, "".into(), ""),
+                other => (false, format!("Error: {}", other), "dialog-error"),
+            }
+        }
+        Err(_) => {
+            println!("Error: Unexpected Error");
+            (false, "Unexpected Error".into(), "dialog-error")
+        }
+    };
+
+    active_notification.close();
+
+    if !silent {
         Notification::new()
             .hint(Hint::Transient(true))
             .hint(Hint::Category("device".into()))
@@ -52,33 +76,13 @@ fn main() {
             .icon(icon)
             .show()
             .unwrap();
-
-        std::process::exit(1);
-    });
-
-    std::thread::spawn({
-        let kill_notif_tx = kill_notif_tx.clone();
-        move || {
-            let signals = Signals::new(&[SIGTERM, SIGINT]).unwrap();
-            for sig in signals.forever() {
-                eprintln!("received signal {:?}", sig);
-                match kill_notif_tx.send(Some(("Terminated!".into(), "dialog-warning"))) {
-                    Ok(_) => {}
-                    Err(_) => std::process::exit(1),
-                }
-            }
-        }
-    });
-
-    if let Err(e) = true_main() {
-        println!("{}", e);
     }
 
-    let _ = kill_notif_tx.send(None); // silently shut down
-    let _ = handle.join();
+    // cleaning up threads is hard...
+    std::process::exit(1);
 }
 
-fn true_main() -> Result<()> {
+fn controller_main() -> Result<()> {
     println!("Started");
 
     let cfg = config::Config::from_disk()?;

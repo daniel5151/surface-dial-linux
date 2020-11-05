@@ -33,8 +33,10 @@ It would be cool to create some sort of GUI overlay (similar to the Windows one)
 - Operating Modes
     - [x] Volume Controls
     - [x] Media Controls
-    - [x] D-Pad (emulated left, right, and space key)
-    - [x] Scrolling / Zooming
+    - [x] Scrolling - using a virtual mouse-wheel
+    - [x] Scrolling - using a virtual touchpad (for [smoother scrolling](https://who-t.blogspot.com/2020/04/high-resolution-wheel-scrolling-in.html))
+    - [x] Zooming
+    - [x] [Paddle](https://www.google.com/search?q=arkanoid+paddle) (emulated left, right, and space key)
     - [ ] \(meta\) custom modes specified via config file(s)
 - [x] Dynamically switch between operating modes
     - [x] Using some-sort of on-device mechanism (e.g: long-press)
