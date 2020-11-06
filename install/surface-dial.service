@@ -1,5 +1,12 @@
-# IMPORTANT: modify the "ExecStart" field to reflect your userid + surface-dial-daemon install dir
+# IMPORTANT: modify the "ExecStart" field to reflect your surface-dial-daemon install dir
+
+[Unit]
+Description=Surface Dial Daemon
 
 [Service]
-# HACK: this service needs to run _after_ the /dev/input/eventXX files have been created
-ExecStart=bash -c 'sleep 1 && /home/danielprilik/.cargo/bin/surface-dial-daemon'
+Type=simple
+StandardOutput=journal
+ExecStart=/home/danielprilik/.cargo/bin/surface-dial-daemon
+
+[Install]
+WantedBy=default.target

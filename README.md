@@ -8,13 +8,13 @@ Things will change.
 Things will break.
 Things are probably buggy.
 
-You've been warned :eyes:
+Bug reports are appreciated!
 
 ## Overview
 
-`surface-dial-daemon` is a background daemon which recieves raw events and translates them to various actions.
+`surface-dial-daemon` is a background daemon which receives raw events from the surface dial, and translates them to various actions.
 
-Aside from haptic feedback, the daemon also uses FreeDesktop notifications to provide visual feedback when performing various actions.
+The daemon uses FreeDesktop notifications to provide visual feedback when switching between actions.
 
 ![](notif-demo.gif)
 
@@ -22,10 +22,14 @@ It would be cool to create some sort of GUI overlay (similar to the Windows one)
 
 ## Implementation
 
-- `libevdev` to read events from the surface dial via `/dev/input/eventXX`
-- `libevdev` to fake input via `/dev/uinput` (for keypresses / media controls)
-- `hidapi` to configure dial sensitivity + haptics
-- `notify-rust` to send notifications over D-Bus
+Core functionality is provided by the following libraries.
+
+- `libudev` to monitor when the dial connects/disconnects.
+- `libevdev` to read events from the surface dial through `/dev/input/eventXX`, and to fake input through `/dev/uinput`.
+- `hidapi` to configure dial sensitivity + haptics.
+- `notify-rust` to send desktop notifications over D-Bus.
+
+While the device-handling code itself is somewhat messy at the moment, it should be really easy to add new operating modes. Just add a new mode implementation under `src/controller/controls` (making sure to update `src/controller/controls/mod.rs`), and add it to the list of available modes in `main.rs`!
 
 ## Functionality
 
@@ -34,12 +38,12 @@ It would be cool to create some sort of GUI overlay (similar to the Windows one)
     - [x] Volume Controls
     - [x] Media Controls
     - [x] Scrolling - using a virtual mouse-wheel
-    - [x] Scrolling - using a virtual touchpad (for [smoother scrolling](https://who-t.blogspot.com/2020/04/high-resolution-wheel-scrolling-in.html))
+    - [ ] Scrolling - using a virtual touchpad (for [smoother scrolling](https://who-t.blogspot.com/2020/04/high-resolution-wheel-scrolling-in.html)) - **WIP**
     - [x] Zooming
     - [x] [Paddle](https://www.google.com/search?q=arkanoid+paddle) (emulated left, right, and space key)
     - [ ] \(meta\) custom modes specified via config file(s)
 - [x] Dynamically switch between operating modes
-    - [x] Using some-sort of on-device mechanism (e.g: long-press)
+    - [x] Using a long-press activated "meta" mode
     - [ ] Context-sensitive (based on currently open application)
 - [x] Mode Persistence (keep mode when dial disconnects)
 - [x] Haptic Feedback
@@ -47,10 +51,8 @@ It would be cool to create some sort of GUI overlay (similar to the Windows one)
     - https://www.usb.org/sites/default/files/hutrr63b_-_haptics_page_redline_0.pdf
     - https://www.usb.org/sites/default/files/hut1_21.pdf
     - _This was tricky to figure out, but in the end, it was surprisingly straightforward! Big thanks to [Geo](https://www.linkedin.com/in/geo-palakunnel-57718245/) for pointing me in the right direction!_
-- [x] Desktop Notifications
-    - [x] On Launch
-    - [x] When switching between modes
-    - [x] When switching between sub-modes (e.g: scroll/zoom)
+- [x] Visual Feedback
+    - [x] FreeDesktop Notifications
 
 Feel free to contribute new features!
 
@@ -60,16 +62,17 @@ Building `surface-dial-daemon` requires the following:
 
 - Linux Kernel 4.19 or higher
 - A fairly recent version of the Rust compiler
+- `libudev`
 - `libevdev`
 - `hidapi`
 
 You can install Rust through [`rustup`](https://rustup.rs/).
 
-Unless you're a cool hackerman, the easiest way to get `libevdev` and `hidapi` is via your distro's package manager.
+Unless you're a cool hackerman, the easiest way to get `libudev`, `libevdev`, and `hidapi` is via your distro's package manager.
 
 ```bash
 # e.g: on ubuntu
-sudo apt install libevdev-dev libhidapi-dev
+sudo apt install libevdev-dev libhidapi-dev libudev-dev
 ```
 
 ## Building
@@ -82,20 +85,37 @@ cargo build -p surface-dial-daemon --release
 
 The resulting binary is output to `target/release/surface-dial-daemon`
 
+## Running
+
+The daemon is able to handle the dial disconnecting/reconnecting, so as long as it's running in the background, things should Just Work:tm:.
+
+Note that the daemon must run as a _user process_ (**not** as root), as it needs access to the user's D-Bus to send notifications.
+
+Having to run as a user process complicates things a bit, as the daemon must be able to access several restricted-by-default devices under `/dev/`. Notably, the `/dev/uinput` device will need to have it's permissions changed for things to work correctly. The proper way to do this is using the included [udev rule](https://wiki.debian.org/udev), though if you just want to get something up and running, `sudo chmod 666 /dev/uinput` should work fine (though it will revert back once you reboot!).
+
+See the Installation instructions below for how to set up the permissions / udev rules.
+
+During development, the easiest way to run `surface-dial-linux` is using `cargo`:
+
+```bash
+cargo run -p surface-dial-daemon
+```
+
+Alternatively, you can run the daemon directly using the executable at `target/release/surface-dial-daemon`.
+
 ## Installation
 
-At the moment, the daemon dies whenever the Surface Dial disconnects (which naturally happens after a brief period of inactivity).
+I encourage you to tweak the following setup procedure for your particular linux configuration.
 
-Instead of doing the Right Thing :tm: and having the daemon detect when the dial connects/disconnects (PRs appreciated!), I've come up with a [cunning plan](https://www.youtube.com/watch?v=AsXKS8Nyu8Q) to spawn the daemon whenever the Surface Dial connects.
-
-This will only work on systems with `systemd`.
+The following steps have been tested working on Ubuntu 20.04/20.10.
 
 ```bash
 # Install the `surface-dial-daemon` (i.e: build it, and place it under ~/.cargo/bin/surface-dial-daemon)
 # You could also just copy the executable from /target/release/surface-dial-daemon to wherever you like.
 cargo install --path .
 
-# IMPORTANT: modify the .service file to reflect where you placed the `service-dial-daemon` executable
+# IMPORTANT: modify the .service file to reflect where you placed the `service-dial-daemon` executable.
+# if you used `cargo install`, this should be as simple as replacing `danielprilik` with your own user id
 vi ./install/surface-dial.service
 
 # create new group for uinput
@@ -110,17 +130,22 @@ sudo gpasswd -a $(whoami) $(stat -c "%G" /dev/input/event0)
 mkdir -p ~/.config/systemd/user/
 cp ./install/surface-dial.service ~/.config/systemd/user/surface-dial.service
 
-# install the udev rules
+# install the udev rule
 sudo cp ./install/99-uinput.rules /etc/udev/rules.d/99-uinput.rules
-sudo cp ./install/50-surface-dial.rules /etc/udev/rules.d/50-surface-dial.rules
 
 # reload systemd + udev
 systemctl --user daemon-reload
 sudo udevadm control --reload
+
+# enable and start the user service
+systemctl --user enable surface-dial.service
+systemctl --user start surface-dial.service
 ```
+
+To see if the service is running correctly, run `systemctl --user status surface-dial.service`.
 
 You may need to reboot to have the various groups / udev rules propagate.
 
-## License
+If things aren't working, feel free to file a bug report!
 
-At the moment, this software is deliberately unlicensed. I'm not opposed to adding a license at some point, it's moreso that I don't think the project is at the stage where it needs a license.
+_Call for Contributors:_ It would be awesome to have a proper rpm/deb package as well.

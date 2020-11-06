@@ -10,9 +10,11 @@ directories = "3.0"
 evdev-rs = { git = "https://github.com/ndesh26/evdev-rs.git", rev = "8e995b8bf" }
 hidapi = { version = "1.2.3", default-features = false, features = ["linux-shared-hidraw"] }
 lazy_static = "1.4"
+nix = "0.19.0"
 notify-rust = "4"
 parking_lot = "0.11.0"
 signal-hook = "0.1.16"
+udev = "0.5"
 
 # HACK: Using >1 virtual uinput devices will segfault in release builds.
 #

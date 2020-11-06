@@ -35,7 +35,7 @@ pub struct DialController {
     active_mode: ActiveMode,
 
     new_mode: Arc<Mutex<Option<usize>>>,
-    meta_mode: Box<dyn ControlMode>, // always MetaMode
+    meta_mode: Box<dyn ControlMode>, // concrete type is always `MetaMode`
 }
 
 impl DialController {
@@ -60,12 +60,6 @@ impl DialController {
     }
 
     pub fn run(&mut self) -> Result<()> {
-        let initial_mode = match self.active_mode {
-            ActiveMode::Normal(i) => i,
-            ActiveMode::Meta => 0,
-        };
-        self.modes[initial_mode].on_start(self.device.haptics())?;
-
         loop {
             let evt = self.device.next_event()?;
             let haptics = self.device.haptics();
@@ -80,13 +74,22 @@ impl DialController {
                 ActiveMode::Meta => &mut self.meta_mode,
             };
 
-            // TODO: press and hold (+ rotate?) to switch between modes
-
             match evt.kind {
                 DialEventKind::Ignored => {}
+
+                DialEventKind::Connect => {
+                    eprintln!("Dial Connected");
+                    mode.on_start(haptics)?
+                }
+                DialEventKind::Disconnect => {
+                    eprintln!("Dial Disconnected");
+                    mode.on_end(haptics)?
+                }
+
                 DialEventKind::ButtonPress => mode.on_btn_press(haptics)?,
                 DialEventKind::ButtonRelease => mode.on_btn_release(haptics)?,
                 DialEventKind::Dial(delta) => mode.on_dial(haptics, delta)?,
+
                 DialEventKind::ButtonLongPress => {
                     eprintln!("long press!");
                     if !matches!(self.active_mode, ActiveMode::Meta) {

@@ -1,3 +1,4 @@
+#![deny(unsafe_code)]
 #![allow(clippy::collapsible_if, clippy::new_without_default)]
 
 pub mod common;
@@ -37,16 +38,6 @@ fn main() {
         }
     });
 
-    let active_notification = Notification::new()
-        .hint(Hint::Resident(true))
-        .hint(Hint::Category("device".into()))
-        .timeout(Timeout::Never)
-        .summary("Surface Dial")
-        .body("Active!")
-        .icon("media-optical") // it should be vaguely circular :P
-        .show()
-        .expect("Failed to send notification. NOTE: this daemon (probably) can't run as root!");
-
     let (silent, msg, icon) = match terminate_rx.recv() {
         Ok(Ok(())) => (true, "".into(), ""),
         Ok(Err(e)) => {
@@ -63,8 +54,6 @@ fn main() {
             (false, "Unexpected Error".into(), "dialog-error")
         }
     };
-
-    active_notification.close();
 
     if !silent {
         Notification::new()
@@ -88,7 +77,6 @@ fn controller_main() -> Result<()> {
     let cfg = config::Config::from_disk()?;
 
     let dial = DialDevice::new(std::time::Duration::from_millis(750))?;
-    println!("Found the dial");
 
     let mut controller = DialController::new(
         dial,
