@@ -18,11 +18,12 @@ impl ControlMode for ScrollMT {
         ControlModeMeta {
             name: "Scroll",
             icon: "input-mouse",
+            haptics: false,
+            steps: 3600,
         }
     }
 
-    fn on_start(&mut self, haptics: &DialHaptics) -> Result<()> {
-        haptics.set_mode(false, Some(3600))?;
+    fn on_start(&mut self, _haptics: &DialHaptics) -> Result<()> {
         self.acc_delta = 0;
 
         fake_input::scroll_mt_start().map_err(Error::Evdev)?;

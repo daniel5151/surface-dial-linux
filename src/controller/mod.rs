@@ -6,14 +6,25 @@ use crate::error::{Error, Result};
 pub mod controls;
 
 pub struct ControlModeMeta {
+    /// Mode Name (as displayed in the Meta selection menu)
     name: &'static str,
+    /// Mode Icon (as displayed in the Meta selection menu)
+    ///
+    /// This can be a file:// url, or a standard FreeDesktop icon name.
     icon: &'static str,
+    /// Enable automatic haptic feedback when rotating the dial.
+    haptics: bool,
+    /// How many sections the dial should be divided into (from 0 to 3600).
+    steps: u16,
 }
 
 pub trait ControlMode {
     fn meta(&self) -> ControlModeMeta;
 
-    fn on_start(&mut self, haptics: &DialHaptics) -> Result<()>;
+    fn on_start(&mut self, _haptics: &DialHaptics) -> Result<()> {
+        Ok(())
+    }
+
     fn on_end(&mut self, _haptics: &DialHaptics) -> Result<()> {
         Ok(())
     }
@@ -66,7 +77,10 @@ impl DialController {
 
             if let Some(new_mode) = self.new_mode.lock().unwrap().take() {
                 self.active_mode = ActiveMode::Normal(new_mode);
-                self.modes[new_mode].on_start(haptics)?;
+                let mode = &mut self.modes[new_mode];
+
+                haptics.set_mode(mode.meta().haptics, mode.meta().steps)?;
+                mode.on_start(haptics)?;
             }
 
             let mode = match self.active_mode {
@@ -79,6 +93,7 @@ impl DialController {
 
                 DialEventKind::Connect => {
                     eprintln!("Dial Connected");
+                    haptics.set_mode(mode.meta().haptics, mode.meta().steps)?;
                     mode.on_start(haptics)?
                 }
                 DialEventKind::Disconnect => {
@@ -95,6 +110,7 @@ impl DialController {
                     if !matches!(self.active_mode, ActiveMode::Meta) {
                         mode.on_end(haptics)?;
                         self.active_mode = ActiveMode::Meta;
+                        // meta_mode sets haptic feedback manually
                         self.meta_mode.on_start(haptics)?;
                     }
                 }
@@ -157,11 +173,11 @@ impl ControlMode for MetaMode {
                 .map_err(Error::Notif)?,
         );
 
+        haptics.set_mode(true, 36)?;
         haptics.buzz(1)?;
 
         self.first_release = true;
 
-        haptics.set_mode(true, Some(36))?;
         Ok(())
     }
 

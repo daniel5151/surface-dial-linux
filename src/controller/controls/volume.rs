@@ -18,12 +18,9 @@ impl ControlMode for Volume {
         ControlModeMeta {
             name: "Volume",
             icon: "audio-volume-high",
+            haptics: true,
+            steps: 36 * 2,
         }
-    }
-
-    fn on_start(&mut self, haptics: &DialHaptics) -> Result<()> {
-        haptics.set_mode(true, Some(36 * 2))?;
-        Ok(())
     }
 
     fn on_btn_press(&mut self, _: &DialHaptics) -> Result<()> {

@@ -18,12 +18,9 @@ impl ControlMode for Media {
         ControlModeMeta {
             name: "Media",
             icon: "applications-multimedia",
+            haptics: true,
+            steps: 36,
         }
-    }
-
-    fn on_start(&mut self, haptics: &DialHaptics) -> Result<()> {
-        haptics.set_mode(true, Some(36))?;
-        Ok(())
     }
 
     fn on_btn_press(&mut self, _: &DialHaptics) -> Result<()> {

@@ -18,12 +18,9 @@ impl ControlMode for Zoom {
         ControlModeMeta {
             name: "Zoom",
             icon: "zoom-in",
+            haptics: true,
+            steps: 36,
         }
-    }
-
-    fn on_start(&mut self, haptics: &DialHaptics) -> Result<()> {
-        haptics.set_mode(true, Some(36))?;
-        Ok(())
     }
 
     fn on_btn_press(&mut self, _: &DialHaptics) -> Result<()> {

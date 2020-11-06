@@ -148,11 +148,12 @@ impl ControlMode for Paddle {
         ControlModeMeta {
             name: "Paddle",
             icon: "input-gaming",
+            haptics: false,
+            steps: 3600,
         }
     }
 
-    fn on_start(&mut self, haptics: &DialHaptics) -> Result<()> {
-        haptics.set_mode(false, Some(3600))?;
+    fn on_start(&mut self, _haptics: &DialHaptics) -> Result<()> {
         let _ = self.msg.send(Msg::Enabled(true));
         Ok(())
     }

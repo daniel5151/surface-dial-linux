@@ -7,12 +7,9 @@ impl ControlMode for () {
         ControlModeMeta {
             name: "null",
             icon: "",
+            haptics: false,
+            steps: 3600,
         }
-    }
-
-    fn on_start(&mut self, haptics: &DialHaptics) -> Result<()> {
-        haptics.set_mode(false, Some(0))?;
-        Ok(())
     }
 
     fn on_btn_press(&mut self, _haptics: &DialHaptics) -> Result<()> {

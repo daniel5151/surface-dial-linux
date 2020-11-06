@@ -15,9 +15,8 @@ impl DialHaptics {
     }
 
     /// `steps` should be a value between 0 and 3600, which corresponds to the
-    /// number of subdivisions the dial should use. If left unspecified, this
-    /// defaults to 36 (an arbitrary choice that "feels good" most of the time)
-    pub fn set_mode(&self, haptics: bool, steps: Option<u16>) -> Result<()> {
+    /// number of subdivisions the dial should use.
+    pub fn set_mode(&self, haptics: bool, steps: u16) -> Result<()> {
         let _ = (self.msg).send(DialHapticsWorkerMsg::SetMode { haptics, steps });
         Ok(())
     }
@@ -32,7 +31,7 @@ impl DialHaptics {
 pub(super) enum DialHapticsWorkerMsg {
     DialConnected,
     DialDisconnected,
-    SetMode { haptics: bool, steps: Option<u16> },
+    SetMode { haptics: bool, steps: u16 },
     Manual { repeat: u8 },
 }
 
@@ -87,8 +86,7 @@ impl DialHidWrapper {
     /// `steps` should be a value between 0 and 3600, which corresponds to the
     /// number of subdivisions the dial should use. If left unspecified, this
     /// defaults to 36 (an arbitrary choice that "feels good" most of the time)
-    fn set_mode(&self, haptics: bool, steps: Option<u16>) -> Result<()> {
-        let steps = steps.unwrap_or(36);
+    fn set_mode(&self, haptics: bool, steps: u16) -> Result<()> {
         assert!(steps <= 3600);
 
         let steps_lo = steps & 0xff;

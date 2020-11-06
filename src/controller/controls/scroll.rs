@@ -16,12 +16,9 @@ impl ControlMode for Scroll {
         ControlModeMeta {
             name: "Scroll",
             icon: "input-mouse",
+            haptics: false,
+            steps: 90,
         }
-    }
-
-    fn on_start(&mut self, haptics: &DialHaptics) -> Result<()> {
-        haptics.set_mode(false, Some(90))?;
-        Ok(())
     }
 
     fn on_btn_press(&mut self, _: &DialHaptics) -> Result<()> {
