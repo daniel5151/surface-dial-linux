@@ -82,8 +82,8 @@ fn controller_main() -> Result<()> {
         dial,
         cfg.last_mode,
         vec![
-            // Box::new(controller::controls::ScrollMT::new()),
             Box::new(controller::controls::Scroll::new()),
+            Box::new(controller::controls::ScrollMT::new()),
             Box::new(controller::controls::Zoom::new()),
             Box::new(controller::controls::Volume::new()),
             Box::new(controller::controls::Media::new()),

@@ -6,8 +6,8 @@ use parking_lot::ReentrantMutex;
 
 // this should be a fairly high number, as the axis is from 0..(MT_BASELINE*2)
 const MT_BASELINE: i32 = std::i32::MAX / 8;
-// higher = more sensitive
-const MT_SENSITIVITY: i32 = 64;
+// higher = slower scrolling
+const MT_SENSITIVITY: i32 = 48;
 
 pub struct FakeInputs {
     keyboard: ReentrantMutex<UInputDevice>,

@@ -38,7 +38,7 @@ While the device-handling code itself is somewhat messy at the moment, it should
     - [x] Volume Controls
     - [x] Media Controls
     - [x] Scrolling - using a virtual mouse-wheel
-    - [ ] Scrolling - using a virtual touchpad (for [smoother scrolling](https://who-t.blogspot.com/2020/04/high-resolution-wheel-scrolling-in.html)) - **WIP**
+    - [x] Scrolling - using a virtual touchpad (for [smoother scrolling](https://who-t.blogspot.com/2020/04/high-resolution-wheel-scrolling-in.html)) - **EXPERIMENTAL**
     - [x] Zooming
     - [x] [Paddle](https://www.google.com/search?q=arkanoid+paddle) (emulated left, right, and space key)
     - [ ] \(meta\) custom modes specified via config file(s)

@@ -16,7 +16,7 @@ impl ScrollMT {
 impl ControlMode for ScrollMT {
     fn meta(&self) -> ControlModeMeta {
         ControlModeMeta {
-            name: "Scroll",
+            name: "Scroll (Fake Multitouch - EXPERIMENTAL)",
             icon: "input-mouse",
             haptics: false,
             steps: 3600,
@@ -26,7 +26,13 @@ impl ControlMode for ScrollMT {
     fn on_start(&mut self, _haptics: &DialHaptics) -> Result<()> {
         self.acc_delta = 0;
 
-        fake_input::scroll_mt_start().map_err(Error::Evdev)?;
+        // HACK: for some reason, if scroll mode is the startup mode, then just calling
+        // `scroll_mt_start` doesn't work as expected.
+        std::thread::spawn(move || {
+            fake_input::scroll_mt_end().unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            fake_input::scroll_mt_start().unwrap();
+        });
 
         Ok(())
     }
