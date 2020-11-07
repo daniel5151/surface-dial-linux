@@ -120,6 +120,10 @@ lazy_static::lazy_static! {
             Ok(ReentrantMutex::new(UInputDevice::create_from_device(&device)?))
         })().expect("failed to install virtual touchpad device");
 
+        // HACK: give the kernel a chance to register the new devices. If this
+        // line is omitted, the first fake input is likely to be dropped.
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
         FakeInputs {
             keyboard,
             touchpad
