@@ -1,3 +1,6 @@
+use std::sync::mpsc;
+use std::time::Duration;
+
 use crate::controller::{ControlMode, ControlModeMeta};
 use crate::dial_device::DialHaptics;
 use crate::error::{Error, Result};
@@ -5,11 +8,55 @@ use crate::fake_input;
 
 use evdev_rs::enums::EV_KEY;
 
-pub struct Volume {}
+fn double_click_worker(click: mpsc::Receiver<()>, release: mpsc::Receiver<()>) -> Result<()> {
+    loop {
+        // drain any spurious clicks/releases
+        for _ in click.try_iter() {}
+        for _ in release.try_iter() {}
+
+        click.recv().unwrap();
+        // recv with timeout, in case this is a long-press
+        match release.recv_timeout(Duration::from_secs(1)) {
+            Ok(()) => {}
+            Err(mpsc::RecvTimeoutError::Timeout) => continue,
+            Err(mpsc::RecvTimeoutError::Disconnected) => panic!(),
+        }
+
+        match click.recv_timeout(Duration::from_millis(250)) {
+            Ok(()) => {
+                // double click
+                release.recv().unwrap(); // should only fire after button is released
+                eprintln!("mute");
+                fake_input::key_click(&[EV_KEY::KEY_MUTE]).map_err(Error::Evdev)?;
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                // single click
+                eprintln!("play/pause");
+                fake_input::key_click(&[EV_KEY::KEY_PLAYPAUSE]).map_err(Error::Evdev)?;
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => panic!(),
+        }
+    }
+}
+
+pub struct Volume {
+    click_tx: mpsc::Sender<()>,
+    release_tx: mpsc::Sender<()>,
+    worker_handle: Option<std::thread::JoinHandle<Result<()>>>,
+}
 
 impl Volume {
     pub fn new() -> Volume {
-        Volume {}
+        let (click_tx, click_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+
+        let worker_handle = std::thread::spawn(move || double_click_worker(click_rx, release_rx));
+
+        Volume {
+            click_tx,
+            release_tx,
+            worker_handle: Some(worker_handle),
+        }
     }
 }
 
@@ -24,14 +71,24 @@ impl ControlMode for Volume {
     }
 
     fn on_btn_press(&mut self, _: &DialHaptics) -> Result<()> {
-        // TODO: support double-click to play/pause
+        if self.click_tx.send(()).is_err() {
+            self.worker_handle
+                .take()
+                .unwrap()
+                .join()
+                .expect("panic on thread join")?;
+        }
         Ok(())
     }
 
     fn on_btn_release(&mut self, _: &DialHaptics) -> Result<()> {
-        eprintln!("play/pause");
-        // fake_input::mute()?
-        fake_input::key_click(&[EV_KEY::KEY_PLAYPAUSE]).map_err(Error::Evdev)?;
+        if self.release_tx.send(()).is_err() {
+            self.worker_handle
+                .take()
+                .unwrap()
+                .join()
+                .expect("panic on thread join")?;
+        }
         Ok(())
     }
 
