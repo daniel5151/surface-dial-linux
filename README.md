@@ -74,9 +74,9 @@ The daemon is able to handle the dial disconnecting/reconnecting, so as long as 
 
 Note that the daemon must run as a _user process_ (**not** as root), as it needs access to the user's D-Bus to send notifications.
 
-Having to run as a user process complicates things a bit, as the daemon must be able to access several restricted-by-default devices under `/dev/`. Notably, the `/dev/uinput` device will need to have it's permissions changed for things to work correctly. The proper way to do this is using the included [udev rule](https://wiki.debian.org/udev), though if you just want to get something up and running, `sudo chmod 666 /dev/uinput` should work fine (though it will revert back once you reboot!).
+Having to run as a user process complicates things a bit, as the daemon must be able to access several restricted-by-default devices under `/dev/`. Notably, the `/dev/uinput` device and the Surface Dial's `/dev/hidrawX` device will need to have their permissions changed for things to work correctly. The proper way to do this is using the included [udev rules](https://wiki.debian.org/udev), though if you just want to get something up and running, `sudo chmod 666 <device>` should work fine (though it will revert back once you reboot!).
 
-See the Installation instructions below for how to set up the permissions / udev rules.
+See the Installation section below for how to set up the permissions / udev rules.
 
 During development, the easiest way to run `surface-dial-linux` is using `cargo`:
 
@@ -88,7 +88,7 @@ Alternatively, you can run the daemon directly using the executable at `target/r
 
 ## Installation
 
-I encourage you to tweak the following setup procedure for your particular linux configuration.
+I encourage you to tweak the following setup procedure for your particular Linux configuration.
 
 The following steps have been tested working on Ubuntu 20.04/20.10.
 
@@ -101,20 +101,16 @@ cargo install --path .
 # if you used `cargo install`, this should be as simple as replacing `danielprilik` with your own user id
 vi ./install/surface-dial.service
 
-# create new group for uinput
-# (the 99-uinput.rules file changes the group of /dev/uinput to this new group)
-sudo groupdadd -f uinput
-
-# add self to the new uinput group and the existing /dev/input group
-sudo gpasswd -a $(whoami) uinput
+# add self to the existing /dev/input group (either `input` or `plugdev`, depending on your distro)
 sudo gpasswd -a $(whoami) $(stat -c "%G" /dev/input/event0)
 
 # install the systemd user service
 mkdir -p ~/.config/systemd/user/
 cp ./install/surface-dial.service ~/.config/systemd/user/surface-dial.service
 
-# install the udev rule
+# install the udev rules
 sudo cp ./install/99-uinput.rules /etc/udev/rules.d/99-uinput.rules
+sudo cp ./install/99-surface-dial.rules /etc/udev/rules.d/99-surface-dial.rules
 
 # reload systemd + udev
 systemctl --user daemon-reload

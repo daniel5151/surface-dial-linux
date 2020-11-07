@@ -1,1 +1,1 @@
-KERNEL=="uinput", GROUP="uinput", MODE:="0660"
+KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", TAG+="uaccess", TAG+="udev-acl"
