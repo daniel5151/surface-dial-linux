@@ -66,7 +66,7 @@ impl DialController {
             active_mode: ActiveMode::Normal(initial_mode),
 
             new_mode: new_mode.clone(),
-            meta_mode: Box::new(MetaMode::new(new_mode, 0, metas)),
+            meta_mode: Box::new(MetaMode::new(new_mode, initial_mode, metas)),
         }
     }
 
