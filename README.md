@@ -28,14 +28,15 @@ At the moment, these modes (along with their meta-menu ordering) are hard-coded 
 
 Modes in **bold** should be considered **EXPERIMENTAL**. They seem to work alright (some of the time), but they would really benefit from some more polish / bug fixes.
 
-| Mode                         | Click             | Rotate               | Notes                                                                                 |
-| ---------------------------- | ----------------- | -------------------- | ------------------------------------------------------------------------------------- |
-| Scroll                       | -                 | Scroll               | Fakes chunky mouse-wheel scrolling <sup>1</sup>                                       |
-| **Scroll (Fake Multitouch)** | Reset Touch Event | Scroll               | Fakes smooth two-finger scrolling                                                     |
-| Zoom                         | -                 | Zoom                 |                                                                                       |
-| Volume                       | Play/Pause        | Volume               | Double-click to mute                                                                  |
-| Media                        | Play/Pause        | Next/Prev Track      |                                                                                       |
-| **Paddle Controller**        | Space             | Left/Right Arrow Key | Like those old [paddle controllers](https://www.google.com/search?q=arkanoid+paddle). |
+| Mode                         | Click             | Rotate               | Notes                                                                                  |
+| ---------------------------- | ----------------- | -------------------- | -------------------------------------------------------------------------------------- |
+| Scroll                       | -                 | Scroll               | Fakes chunky mouse-wheel scrolling <sup>1</sup>                                        |
+| **Scroll (Fake Multitouch)** | Reset Touch Event | Scroll               | Fakes smooth two-finger scrolling                                                      |
+| Zoom                         | -                 | Zoom                 |                                                                                        |
+| Volume                       | Mute              | Volume               |                                                                                        |
+| Media                        | Play/Pause        | Next/Prev Track      |                                                                                        |
+| Media + Volume               | Play/Pause        | Volume               | Double-click = Next Track                                                              |
+| **Paddle Controller**        | Space             | Left/Right Arrow Key | Play [arkanoid](https://www.google.com/search?q=arkanoid+paddle) as the devs intended! |
 
 <sup>1</sup> At the time of writing, almost all Linux userspace programs don't take advantage of the newer high-resolution scroll wheel events, and only support the older, chunkier scroll wheel events. Check out [this blog post](https://who-t.blogspot.com/2020/04/high-resolution-wheel-scrolling-in.html) for more details.
 
