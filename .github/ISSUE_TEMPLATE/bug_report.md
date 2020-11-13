@@ -19,3 +19,5 @@ _A clear and concise description of what the bug is._
 **Service Logs**
 
 _Please copy the output of `journalctl -u surface-dial.service` / the daemon's `stdout/stderr`._
+
+When possible, please reproduce the bug with the `RUST_BACKTRACE=1` environment variable set. Having a detailed backtrace will make it easier to diagnose (and hopefully fix) the bug.
