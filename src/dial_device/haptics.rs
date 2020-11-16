@@ -58,7 +58,7 @@ impl DialHapticsWorker {
             eprintln!("haptics worker is ready");
 
             let api = HidApi::new().map_err(Error::HidError)?;
-            let hid_device = api.open(0x045e, 0x091b).map_err(|_| Error::MissingDial)?;
+            let hid_device = api.open(0x045e, 0x091b).map_err(Error::HidError)?;
             let wrapper = DialHidWrapper { hid_device };
 
             loop {

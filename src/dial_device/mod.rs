@@ -69,8 +69,12 @@ impl DialDevice {
         std::thread::spawn({
             let mut worker = DialHapticsWorker::new(haptics_msg_rx)?;
             move || {
-                worker.run().unwrap();
+                if let Err(err) = worker.run() {
+                    eprintln!("Unexpected haptics worker error! {}", err);
+                }
                 eprintln!("the haptics worker died!");
+                // there's no coming back from this.
+                std::process::exit(0);
             }
         });
 
