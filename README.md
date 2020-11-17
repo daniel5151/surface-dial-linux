@@ -110,8 +110,8 @@ mkdir -p ~/.config/systemd/user/
 cp ./install/surface-dial.service ~/.config/systemd/user/surface-dial.service
 
 # install the udev rules
-sudo cp ./install/99-uinput.rules /etc/udev/rules.d/99-uinput.rules
-sudo cp ./install/99-surface-dial.rules /etc/udev/rules.d/99-surface-dial.rules
+sudo cp ./install/10-uinput.rules /etc/udev/rules.d/10-uinput.rules
+sudo cp ./install/10-surface-dial.rules /etc/udev/rules.d/10-surface-dial.rules
 
 # reload systemd + udev
 systemctl --user daemon-reload
