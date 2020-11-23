@@ -2,12 +2,6 @@
 
 A Linux userspace controller for the [Microsoft Surface Dial](https://www.microsoft.com/en-us/p/surface-dial/925r551sktgn). Requires Linux Kernel 4.19 or higher.
 
-**DISCLAIMER: This software is still under active development!**
-
-Things will change.
-Things will break.
-Things are probably buggy.
-
 Bug reports and PRs are appreciated!
 
 ## Overview
@@ -20,11 +14,9 @@ The daemon uses FreeDesktop notifications to provide visual feedback when switch
 
 It would be cool to create some sort of GUI overlay (similar to the Windows one), though that's out of scope at the moment.
 
-#### Operating Modes
+### Operating Modes
 
 Holding down the button for \~750ms will open up a meta-menu (using FreeDesktop notifications) which allows you to switch between operating modes on-the-fly. The daemon persists the last selected mode on-disk, so if you only care about one mode (e.g: scrolling), you can just set it and forget it.
-
-At the moment, these modes (along with their meta-menu ordering) are hard-coded into the daemon itself.
 
 Modes in **bold** should be considered **EXPERIMENTAL**. They seem to work alright (some of the time), but they would really benefit from some more polish / bug fixes.
 
@@ -40,7 +32,13 @@ Modes in **bold** should be considered **EXPERIMENTAL**. They seem to work alrig
 
 <sup>1</sup> At the time of writing, almost all Linux userspace programs don't take advantage of the newer high-resolution scroll wheel events, and only support the older, chunkier scroll wheel events. Check out [this blog post](https://who-t.blogspot.com/2020/04/high-resolution-wheel-scrolling-in.html) for more details.
 
-If you don't mind hacking together a bit of Rust code, adding new modes should be fairly straightforward - just add a new mode implementation under `src/controller/controls` (making sure to update `src/controller/controls/mod.rs`), and instantiate the mode in `main.rs`.
+### Custom Modes
+
+At the moment, all modes (along with their meta-menu ordering) are hard-coded into the daemon itself.
+
+If you don't mind hacking together a bit of [very simple] Rust code, adding new modes should be fairly straightforward - just add a new `ControlMode` implementation under `src/controller/controls` and instantiate it in `main.rs`.
+
+If you ended up implementing new mode you think others would find useful, please consider upstreaming it!
 
 ## Building
 
