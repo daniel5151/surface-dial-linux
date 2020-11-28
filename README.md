@@ -56,7 +56,7 @@ Unless you're a cool hackerman, the easiest way to get `libudev`, `libevdev`, an
 
 ```bash
 # e.g: on ubuntu
-sudo apt install libevdev-dev libhidapi-dev libudev-dev
+sudo apt install libevdev-dev libhidapi-dev libudev-dev librust-libdbus-sys-dev
 ```
 
 Once those are installed, `surface-dial-daemon` can be built using the standard `cargo build` flow.
