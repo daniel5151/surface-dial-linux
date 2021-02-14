@@ -78,7 +78,7 @@ impl EventsWorker {
         loop {
             let _ = self
                 .events
-                .send(match device.next_event(evdev_rs::ReadFlag::NORMAL) {
+                .send(match device.next_event(evdev_rs::ReadFlag::BLOCKING) {
                     Ok((read_status, event)) => RawInputEvent::Event(read_status, event),
                     // this error corresponds to the device disconnecting, which is fine
                     Err(e) if e.raw_os_error() == Some(19) => break,
