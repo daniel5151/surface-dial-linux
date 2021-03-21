@@ -6,7 +6,7 @@ Description=Surface Dial Daemon
 [Service]
 Type=simple
 StandardOutput=journal
-ExecStart=/home/danielprilik/.cargo/bin/surface-dial-daemon
+ExecStart=%h/.cargo/bin/surface-dial-daemon
 
 [Install]
 WantedBy=default.target
