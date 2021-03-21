@@ -102,10 +102,6 @@ The following steps have been tested working on Ubuntu 20.04/20.10.
 # You could also just copy the executable from /target/release/surface-dial-daemon to wherever you like.
 cargo install --path .
 
-# IMPORTANT: modify the .service file to reflect where you placed the `service-dial-daemon` executable.
-# if you used `cargo install`, this should be as simple as replacing `danielprilik` with your own user id
-vi ./install/surface-dial.service
-
 # add self to the existing /dev/input group (either `input` or `plugdev`, depending on your distro)
 sudo gpasswd -a $(whoami) $(stat -c "%G" /dev/input/event0)
 
