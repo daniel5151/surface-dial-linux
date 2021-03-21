@@ -124,7 +124,7 @@ systemctl --user start surface-dial.service
 
 To see if the service is running correctly, run `systemctl --user status surface-dial.service`.
 
-You may need to reboot to have the various groups / udev rules propagate.
+You may need to reboot to have the various groups / udev rules propagate.  You may also need to change DisableSecurity to DisableSecurity=true in /etc/bluetooth/network.conf to successfully pair the Surface Dial.
 
 If things aren't working, feel free to file a bug report!
 
