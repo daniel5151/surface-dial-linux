@@ -2,7 +2,7 @@
 
 A Linux userspace controller for the [Microsoft Surface Dial](https://www.microsoft.com/en-us/p/surface-dial/925r551sktgn). Requires Linux Kernel 4.19 or higher.
 
-Bug reports and PRs are appreciated!
+As you might have guessed by the lack of recent commits, this project has entered **maintenence mode**. While I will not be implementing any new features myself, I am more than glad to take a look at any bug reports and/or review any PRs sent my way! 
 
 ## Overview
 
