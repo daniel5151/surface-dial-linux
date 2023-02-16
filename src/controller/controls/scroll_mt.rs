@@ -3,6 +3,8 @@ use crate::dial_device::DialHaptics;
 use crate::error::{Error, Result};
 use crate::fake_input;
 
+use evdev_rs::enums::EV_KEY;
+
 pub struct ScrollMT {
     acc_delta: i32,
 }
@@ -45,12 +47,12 @@ impl ControlMode for ScrollMT {
     // HACK: the button will reset the scroll event, which sometimes helps
 
     fn on_btn_press(&mut self, _: &DialHaptics) -> Result<()> {
-        fake_input::scroll_mt_end().map_err(Error::Evdev)?;
+       // fake_input::scroll_mt_end().map_err(Error::Evdev)?;
         Ok(())
     }
 
     fn on_btn_release(&mut self, _haptics: &DialHaptics) -> Result<()> {
-        fake_input::scroll_mt_start().map_err(Error::Evdev)?;
+        fake_input::key_click(&[EV_KEY::BTN_LEFT]).map_err(Error::Evdev)?;
         Ok(())
     }
 
