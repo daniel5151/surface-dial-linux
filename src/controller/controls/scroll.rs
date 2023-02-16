@@ -3,6 +3,8 @@ use crate::dial_device::DialHaptics;
 use crate::error::{Error, Result};
 use crate::fake_input::{self, ScrollStep};
 
+use evdev_rs::enums::EV_KEY;
+
 pub struct Scroll {}
 
 impl Scroll {
@@ -22,10 +24,12 @@ impl ControlMode for Scroll {
     }
 
     fn on_btn_press(&mut self, _: &DialHaptics) -> Result<()> {
+        //fake_input::key_click(&[EV_KEY::BTN_LEFT]).map_err(Error::Evdev)?;
         Ok(())
     }
 
     fn on_btn_release(&mut self, _haptics: &DialHaptics) -> Result<()> {
+        fake_input::key_click(&[EV_KEY::BTN_LEFT]).map_err(Error::Evdev)?;
         Ok(())
     }
 
