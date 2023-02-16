@@ -53,11 +53,14 @@ impl EventsWorker {
                     .property_value("NAME")
                     .unwrap_or_else(|| std::ffi::OsStr::new(""))
                     .to_string_lossy();
+                eprintln!("Found input device with name: {:?}", name);
 
-                match (self.input_kind, name.as_ref()) {
-                    (DialInputKind::Control, r#""Surface Dial System Control""#) => {}
-                    (DialInputKind::MultiAxis, r#""Surface Dial System Multi Axis""#) => {}
-                    _ => return Ok(None),
+                let input_name = match self.input_kind {
+                    DialInputKind::Control => "Control",
+                    DialInputKind::MultiAxis => "Multi Axis",
+                };
+                if !name.contains(input_name) {
+                    return Ok(None);
                 }
             }
         }
