@@ -3,6 +3,8 @@
 This branch is to add support for the iWit USB Knob. It and it's clones are cheaply available online and from sites like AliExpress. When it is set up to emulate a Surface Dial in it's firmwaare it can use this driver to enable mode switching on the fly.
 - iWit USB Knob Documentation: https://iwit.me/support/english.html
 
+
+## Original README
 A Linux userspace controller for the [Microsoft Surface Dial](https://www.microsoft.com/en-us/p/surface-dial/925r551sktgn). Requires Linux Kernel 4.19 or higher.
 
 As you might have guessed by the lack of recent commits, this project has entered **maintenence mode**. While I will not be implementing any new features myself, I am more than glad to take a look at any bug reports and/or review any PRs sent my way! 
