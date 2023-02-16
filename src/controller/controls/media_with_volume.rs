@@ -95,11 +95,11 @@ impl ControlMode for MediaWithVolume {
     fn on_dial(&mut self, _: &DialHaptics, delta: i32) -> Result<()> {
         if delta > 0 {
             eprintln!("volume up");
-            fake_input::key_click(&[EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_VOLUMEUP])
+            fake_input::key_click(&[EV_KEY::KEY_VOLUMEUP])
                 .map_err(Error::Evdev)?;
         } else {
             eprintln!("volume down");
-            fake_input::key_click(&[EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_VOLUMEDOWN])
+            fake_input::key_click(&[EV_KEY::KEY_VOLUMEDOWN])
                 .map_err(Error::Evdev)?;
         }
 
