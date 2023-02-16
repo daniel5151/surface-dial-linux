@@ -24,10 +24,12 @@ impl ControlMode for Zoom {
     }
 
     fn on_btn_press(&mut self, _: &DialHaptics) -> Result<()> {
+        //fake_input::key_click(&[EV_KEY::KEY_LEFTCTRL, EV_KEY::KEY_EQUAL]);
         Ok(())
     }
 
     fn on_btn_release(&mut self, _haptics: &DialHaptics) -> Result<()> {
+        fake_input::key_click(&[EV_KEY::KEY_LEFTCTRL, EV_KEY::KEY_0]);
         Ok(())
     }
 
