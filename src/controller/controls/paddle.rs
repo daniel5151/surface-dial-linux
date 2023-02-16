@@ -40,7 +40,7 @@ impl Worker {
             msg,
 
             // tweak these for "feel"
-            timeout: 5,
+            timeout:0,
             falloff: 10,
             cap: 250,
             deadzone: 10,
