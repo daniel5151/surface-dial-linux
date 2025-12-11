@@ -4,14 +4,17 @@ mod null;
 mod paddle;
 mod scroll;
 mod scroll_mt;
+mod seek;
 mod volume;
 mod zoom;
 
 pub use self::media::*;
 pub use self::media_with_volume::*;
+#[allow(unused_imports)]
 pub use self::null::*;
 pub use self::paddle::*;
 pub use self::scroll::*;
 pub use self::scroll_mt::*;
+pub use self::seek::*;
 pub use self::volume::*;
 pub use self::zoom::*;

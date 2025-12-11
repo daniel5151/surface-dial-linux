@@ -37,6 +37,8 @@ lazy_static::lazy_static! {
                 device.enable(&EventCode::EV_KEY(EV_KEY::KEY_NEXTSONG))?;
                 device.enable(&EventCode::EV_KEY(EV_KEY::KEY_PLAYPAUSE))?;
                 device.enable(&EventCode::EV_KEY(EV_KEY::KEY_PREVIOUSSONG))?;
+                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_FASTFORWARD))?;
+                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_REWIND))?;
 
                 device.enable(&EventCode::EV_KEY(EV_KEY::KEY_LEFT))?;
                 device.enable(&EventCode::EV_KEY(EV_KEY::KEY_RIGHT))?;

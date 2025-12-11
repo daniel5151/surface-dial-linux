@@ -89,6 +89,7 @@ fn controller_main() -> Result<()> {
             Box::new(controller::controls::Media::new()),
             Box::new(controller::controls::MediaWithVolume::new()),
             Box::new(controller::controls::Paddle::new()),
+            Box::new(controller::controls::Seek::new()),
         ],
     );
 
