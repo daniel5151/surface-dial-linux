@@ -6,7 +6,7 @@ use crate::dial_device::DialHaptics;
 use crate::error::{Error, Result};
 use crate::fake_input;
 
-use evdev_rs::enums::EV_KEY;
+use evdev::Key;
 
 fn double_click_worker(click: mpsc::Receiver<()>, release: mpsc::Receiver<()>) -> Result<()> {
     loop {
@@ -27,12 +27,12 @@ fn double_click_worker(click: mpsc::Receiver<()>, release: mpsc::Receiver<()>) -
                 // double click
                 release.recv().unwrap(); // should only fire after button is released
                 eprintln!("next track");
-                fake_input::key_click(&[EV_KEY::KEY_NEXTSONG]).map_err(Error::Evdev)?;
+                fake_input::key_click(&[Key::KEY_NEXTSONG]).map_err(Error::Evdev)?;
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {
                 // single click
                 eprintln!("play/pause");
-                fake_input::key_click(&[EV_KEY::KEY_PLAYPAUSE]).map_err(Error::Evdev)?;
+                fake_input::key_click(&[Key::KEY_PLAYPAUSE]).map_err(Error::Evdev)?;
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => panic!(),
         }
@@ -95,11 +95,11 @@ impl ControlMode for MediaWithVolume {
     fn on_dial(&mut self, _: &DialHaptics, delta: i32) -> Result<()> {
         if delta > 0 {
             eprintln!("volume up");
-            fake_input::key_click(&[EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_VOLUMEUP])
+            fake_input::key_click(&[Key::KEY_LEFTSHIFT, Key::KEY_VOLUMEUP])
                 .map_err(Error::Evdev)?;
         } else {
             eprintln!("volume down");
-            fake_input::key_click(&[EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_VOLUMEDOWN])
+            fake_input::key_click(&[Key::KEY_LEFTSHIFT, Key::KEY_VOLUMEDOWN])
                 .map_err(Error::Evdev)?;
         }
 

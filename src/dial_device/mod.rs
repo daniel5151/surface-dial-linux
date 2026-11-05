@@ -100,10 +100,8 @@ impl DialDevice {
         };
 
         let event = match evt {
-            Ok(events::RawInputEvent::Event(_event_status, event)) => {
-                // assert!(matches!(axis_status, ReadStatus::Success));
-                let event =
-                    DialEvent::from_raw_evt(event.clone()).ok_or(Error::UnexpectedEvt(event))?;
+            Ok(events::RawInputEvent::Event(event)) => {
+                let event = DialEvent::from_raw_evt(event).ok_or(Error::UnexpectedEvt(event))?;
 
                 match event.kind {
                     DialEventKind::ButtonPress => self.possible_long_press = true,
@@ -144,31 +142,28 @@ impl DialDevice {
 }
 
 impl DialEvent {
-    fn from_raw_evt(evt: evdev_rs::InputEvent) -> Option<DialEvent> {
-        use evdev_rs::enums::*;
+    fn from_raw_evt(evt: evdev::InputEvent) -> Option<DialEvent> {
+        use evdev::{InputEventKind, Key, RelativeAxisType};
 
-        let evt_kind = match evt.event_type {
-            EventType::EV_SYN | EventType::EV_MSC => DialEventKind::Ignored,
-            EventType::EV_KEY => match evt.event_code {
-                EventCode::EV_KEY(EV_KEY::BTN_0) => match evt.value {
-                    0 => DialEventKind::ButtonRelease,
-                    1 => DialEventKind::ButtonPress,
-                    _ => return None,
-                },
+        let evt_kind = match evt.kind() {
+            InputEventKind::Synchronization(_) | InputEventKind::Misc(_) => DialEventKind::Ignored,
+            InputEventKind::Key(Key::BTN_0) => match evt.value() {
+                0 => DialEventKind::ButtonRelease,
+                1 => DialEventKind::ButtonPress,
                 _ => return None,
             },
-            EventType::EV_REL => match evt.event_code {
-                EventCode::EV_REL(EV_REL::REL_DIAL) => DialEventKind::Dial(evt.value),
-                _ => return None,
-            },
+            InputEventKind::RelAxis(RelativeAxisType::REL_DIAL) => DialEventKind::Dial(evt.value()),
             _ => return None,
         };
 
-        let evt = DialEvent {
-            time: Duration::new(evt.time.tv_sec as u64, (evt.time.tv_usec * 1000) as u32),
-            kind: evt_kind,
-        };
+        let time = evt
+            .timestamp()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default();
 
-        Some(evt)
+        Some(DialEvent {
+            time,
+            kind: evt_kind,
+        })
     }
 }

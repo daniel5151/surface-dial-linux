@@ -47,16 +47,15 @@ Building `surface-dial-daemon` requires the following:
 -   Linux Kernel 4.19 or higher
 -   A fairly recent version of the Rust compiler
 -   `libudev`
--   `libevdev`
 -   `hidapi`
 
 You can install Rust through [`rustup`](https://rustup.rs/).
 
-Unless you're a cool hackerman, the easiest way to get `libudev`, `libevdev`, and `hidapi` is via your distro's package manager.
+Unless you're a cool hackerman, the easiest way to get `libudev` and `hidapi` is via your distro's package manager.
 
 ```bash
 # e.g: on ubuntu
-sudo apt install libevdev-dev libhidapi-dev libudev-dev
+sudo apt install libhidapi-dev libudev-dev
 ```
 
 On certain Ubuntu distros, you may also need to install the `librust-libdbus-sys-dev` package:
@@ -135,13 +134,13 @@ _Call for Contributors:_ It would be awesome to have a proper packaging pipeline
 Core functionality is provided by the following libraries.
 
 -   `libudev` to monitor when the dial connects/disconnects.
--   `libevdev` to read events from the surface dial through `/dev/input/eventXX`, and to fake input through `/dev/uinput`.
+-   [`evdev`](https://crates.io/crates/evdev) (a pure Rust crate) to read events from the surface dial through `/dev/input/eventXX`, and to fake input through `/dev/uinput`.
 -   `hidapi` to configure dial sensitivity + haptics.
 -   `notify-rust` to send desktop notifications over D-Bus.
 
-The code makes heavy use of threads + channels to do non-blocking event handling. While async/await would have been a great fit for an application like this, I optimized for getting something up-and-running rather than maximum performance. Plus, the Rust wrappers around `libudev`, `libevdev`, and `hidapi` don't have native async/await support, so it would have been a lot more work for not too much gain.
+The code makes heavy use of threads + channels to do non-blocking event handling. While async/await would have been a great fit for an application like this, I optimized for getting something up-and-running rather than maximum performance. Plus, the Rust wrappers around `libudev`, `evdev`, and `hidapi` don't have native async/await support, so it would have been a lot more work for not too much gain.
 
-The codebase is reasonably well organized, aside from the `dial_device` implementation, which is admittedly a bit gnarly. There's a bit of of thread/channel spaghetti going on to ensure that the lifetime of the haptics object lines up with the lifetime of the `libevdev` objects (as reported by `libudev`). All things considered, it's not _too_ messy, but it could certainly use some cleanup. Fortunately, if you're only interested in implementing new operating modes, you won't have to worry about any of that, as all the nitty-gritty device interaction is neatly encapsulated behind the `ControlMode` trait.
+The codebase is reasonably well organized, aside from the `dial_device` implementation, which is admittedly a bit gnarly. There's a bit of of thread/channel spaghetti going on to ensure that the lifetime of the haptics object lines up with the lifetime of the `evdev` objects (as reported by `libudev`). All things considered, it's not _too_ messy, but it could certainly use some cleanup. Fortunately, if you're only interested in implementing new operating modes, you won't have to worry about any of that, as all the nitty-gritty device interaction is neatly encapsulated behind the `ControlMode` trait.
 
 ## Feature Roadmap
 
