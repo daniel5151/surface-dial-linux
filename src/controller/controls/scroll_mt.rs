@@ -29,9 +29,13 @@ impl ControlMode for ScrollMT {
         // HACK: for some reason, if scroll mode is the startup mode, then just calling
         // `scroll_mt_start` doesn't work as expected.
         std::thread::spawn(move || {
-            fake_input::scroll_mt_end().unwrap();
-            std::thread::sleep(std::time::Duration::from_millis(200));
-            fake_input::scroll_mt_start().unwrap();
+            let res = fake_input::scroll_mt_end().and_then(|_| {
+                std::thread::sleep(std::time::Duration::from_millis(200));
+                fake_input::scroll_mt_start()
+            });
+            if let Err(e) = res {
+                eprintln!("could not start multitouch scrolling: {}", e);
+            }
         });
 
         Ok(())

@@ -1,287 +1,316 @@
 use std::io;
+use std::sync::{LazyLock, Mutex};
 
-use evdev_rs::enums::*;
-use evdev_rs::{Device, InputEvent, TimeVal, UInputDevice};
-use parking_lot::ReentrantMutex;
+use crate::kde;
+use crate::xtest::{Keysym, XTest};
+use evdev::uinput::{VirtualDevice, VirtualDeviceBuilder};
+use evdev::{
+    AbsInfo, AbsoluteAxisType, AttributeSet, EventType, InputEvent, Key, PropType,
+    RelativeAxisType, UinputAbsSetup,
+};
 
 // this should be a fairly high number, as the axis is from 0..(MT_BASELINE*2)
-const MT_BASELINE: i32 = std::i32::MAX / 8;
+const MT_BASELINE: i32 = i32::MAX / 8;
 // higher = slower scrolling
 const MT_SENSITIVITY: i32 = 48;
 
-pub struct FakeInputs {
-    keyboard: ReentrantMutex<UInputDevice>,
-    touchpad: ReentrantMutex<UInputDevice>,
+/// Keys the virtual keyboard is allowed to send.
+const KEYBOARD_KEYS: &[Key] = &[
+    Key::KEY_LEFTSHIFT,
+    Key::KEY_LEFTCTRL,
+    Key::KEY_MUTE,
+    Key::KEY_VOLUMEDOWN,
+    Key::KEY_VOLUMEUP,
+    Key::KEY_NEXTSONG,
+    Key::KEY_PLAYPAUSE,
+    Key::KEY_PREVIOUSSONG,
+    Key::KEY_LEFT,
+    Key::KEY_RIGHT,
+    Key::KEY_SPACE,
+    Key::KEY_EQUAL,
+    Key::KEY_MINUS,
+];
+
+fn build_keyboard() -> io::Result<VirtualDevice> {
+    let keys: AttributeSet<Key> = KEYBOARD_KEYS.iter().copied().collect();
+    let rel: AttributeSet<RelativeAxisType> = [
+        RelativeAxisType::REL_WHEEL,
+        RelativeAxisType::REL_WHEEL_HI_RES,
+    ]
+    .into_iter()
+    .collect();
+
+    VirtualDeviceBuilder::new()?
+        .name("Surface Dial Virtual Keyboard/Mouse")
+        .with_keys(&keys)?
+        .with_relative_axes(&rel)?
+        .build()
 }
 
-lazy_static::lazy_static! {
-    pub static ref FAKE_INPUTS: FakeInputs = {
-        let keyboard = (|| -> io::Result<_> {
-            let device = Device::new().unwrap();
-            device.set_name("Surface Dial Virtual Keyboard/Mouse");
+fn build_touchpad() -> io::Result<VirtualDevice> {
+    let keys: AttributeSet<Key> = [
+        Key::BTN_LEFT,
+        Key::BTN_TOOL_FINGER,
+        Key::BTN_TOUCH,
+        Key::BTN_TOOL_DOUBLETAP,
+        Key::BTN_TOOL_TRIPLETAP,
+        Key::BTN_TOOL_QUADTAP,
+    ]
+    .into_iter()
+    .collect();
+    let props: AttributeSet<PropType> = [PropType::BUTTONPAD, PropType::POINTER]
+        .into_iter()
+        .collect();
 
-            device.enable(&EventType::EV_SYN)?;
-            device.enable(&EventCode::EV_SYN(EV_SYN::SYN_REPORT))?;
+    let pos = AbsInfo::new(MT_BASELINE, 0, MT_BASELINE * 2, 0, 0, MT_SENSITIVITY);
 
-            device.enable(&EventType::EV_MSC)?;
-            device.enable(&EventCode::EV_MSC(EV_MSC::MSC_SCAN))?;
+    VirtualDeviceBuilder::new()?
+        .name("Surface Dial Virtual Touchpad")
+        .with_properties(&props)?
+        .with_keys(&keys)?
+        // ABS_X / ABS_Y are emitted too, so they must be declared (the original
+        // code forgot them).
+        .with_absolute_axis(&UinputAbsSetup::new(AbsoluteAxisType::ABS_X, pos))?
+        .with_absolute_axis(&UinputAbsSetup::new(AbsoluteAxisType::ABS_Y, pos))?
+        .with_absolute_axis(&UinputAbsSetup::new(
+            AbsoluteAxisType::ABS_MT_SLOT,
+            AbsInfo::new(0, 0, 4, 0, 0, 0),
+        ))?
+        .with_absolute_axis(&UinputAbsSetup::new(
+            AbsoluteAxisType::ABS_MT_TRACKING_ID,
+            AbsInfo::new(0, 0, 65535, 0, 0, 0),
+        ))?
+        .with_absolute_axis(&UinputAbsSetup::new(
+            AbsoluteAxisType::ABS_MT_POSITION_X,
+            pos,
+        ))?
+        .with_absolute_axis(&UinputAbsSetup::new(
+            AbsoluteAxisType::ABS_MT_POSITION_Y,
+            pos,
+        ))?
+        .build()
+}
 
-            device.enable(&EventType::EV_KEY)?;
-            {
-                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_LEFTSHIFT))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_LEFTCTRL))?;
-
-                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_MUTE))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_VOLUMEDOWN))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_VOLUMEUP))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_NEXTSONG))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_PLAYPAUSE))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_PREVIOUSSONG))?;
-
-                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_LEFT))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_RIGHT))?;
-
-                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_SPACE))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_EQUAL))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::KEY_MINUS))?;
-            }
-
-            device.enable(&EventType::EV_REL)?;
-            {
-                device.enable(&EventCode::EV_REL(EV_REL::REL_WHEEL))?;
-                device.enable(&EventCode::EV_REL(EV_REL::REL_WHEEL_HI_RES))?;
-            }
-
-            Ok(ReentrantMutex::new(UInputDevice::create_from_device(&device)?))
-        })().expect("failed to install virtual mouse/keyboard device");
-
-        let touchpad = (|| -> io::Result<_> {
-            let device = Device::new().unwrap();
-            device.set_name("Surface Dial Virtual Touchpad");
-
-            device.enable(&InputProp::INPUT_PROP_BUTTONPAD)?;
-            device.enable(&InputProp::INPUT_PROP_POINTER)?;
-
-            device.enable(&EventType::EV_SYN)?;
-            device.enable(&EventCode::EV_SYN(EV_SYN::SYN_REPORT))?;
-
-            device.enable(&EventType::EV_KEY)?;
-            {
-                device.enable(&EventCode::EV_KEY(EV_KEY::BTN_LEFT))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::BTN_TOUCH))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP))?;
-                device.enable(&EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP))?;
-            }
-
-            // roughly copied from my laptop's trackpad (Aero 15x)
-            device.enable(&EventType::EV_ABS)?;
-            {
-                let mut abs_info = evdev_rs::AbsInfo {
-                    value: 0,
-                    minimum: 0,
-                    maximum: 0,
-                    fuzz: 0,
-                    flat: 0,
-                    resolution: 0,
-                };
-
-                abs_info.minimum = 0;
-                abs_info.maximum = 4;
-                device.enable_event_code(&EventCode::EV_ABS(EV_ABS::ABS_MT_SLOT), Some(&abs_info))?;
-
-                abs_info.minimum = 0;
-                abs_info.maximum = 65535;
-                device.enable_event_code(
-                    &EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID),
-                    Some(&abs_info),
-                )?;
-
-                abs_info.resolution = MT_SENSITIVITY;
-                abs_info.minimum = 0;
-                abs_info.maximum = MT_BASELINE * 2;
-                abs_info.value = MT_BASELINE;
-                device.enable_event_code(
-                    &EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X),
-                    Some(&abs_info),
-                )?;
-
-                abs_info.value = MT_BASELINE;
-                abs_info.minimum = 0;
-                abs_info.maximum = MT_BASELINE * 2;
-                abs_info.resolution = MT_SENSITIVITY;
-                device.enable_event_code(
-                    &EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y),
-                    Some(&abs_info),
-                )?;
-            }
-
-            Ok(ReentrantMutex::new(UInputDevice::create_from_device(&device)?))
-        })().expect("failed to install virtual touchpad device");
-
-        // HACK: give the kernel a chance to register the new devices. If this
-        // line is omitted, the first fake input is likely to be dropped.
-        std::thread::sleep(std::time::Duration::from_millis(500));
-
-        FakeInputs {
-            keyboard,
-            touchpad
+/// Creates a virtual device. A failure is logged instead of crashing the whole
+/// daemon: only the modes that need this device become unusable.
+fn create(what: &str, build: fn() -> io::Result<VirtualDevice>) -> Option<Mutex<VirtualDevice>> {
+    match build() {
+        Ok(dev) => {
+            // give the kernel a chance to register the new device, otherwise
+            // the first fake input is likely to be dropped.
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            Some(Mutex::new(dev))
         }
-    };
-}
-
-macro_rules! input_event {
-    ($type:ident, $code:ident, $value:expr) => {
-        InputEvent {
-            time: TimeVal::new(0, 0),
-            event_code: EventCode::$type($type::$code),
-            event_type: EventType::$type,
-            value: $value,
+        Err(e) => {
+            eprintln!("could not create the virtual {}: {}", what, e);
+            None
         }
-    };
-}
-
-fn kbd_syn_report() -> io::Result<()> {
-    (FAKE_INPUTS.keyboard.lock()).write_event(&input_event!(EV_SYN, SYN_REPORT, 0))
-}
-
-pub fn key_click(keys: &[EV_KEY]) -> io::Result<()> {
-    key_press(keys)?;
-    key_release(keys)?;
-    Ok(())
-}
-
-pub fn key_press(keys: &[EV_KEY]) -> io::Result<()> {
-    let keyboard = FAKE_INPUTS.keyboard.lock();
-
-    for key in keys {
-        keyboard.write_event(&InputEvent {
-            time: TimeVal::new(0, 0),
-            event_code: EventCode::EV_KEY(*key),
-            event_type: EventType::EV_KEY,
-            value: 1,
-        })?;
     }
-    kbd_syn_report()?;
-    Ok(())
 }
 
-pub fn key_release(keys: &[EV_KEY]) -> io::Result<()> {
-    let keyboard = FAKE_INPUTS.keyboard.lock();
+type Virtual = LazyLock<Option<Mutex<VirtualDevice>>>;
 
-    for key in keys.iter().clone() {
-        keyboard.write_event(&InputEvent {
-            time: TimeVal::new(0, 0),
-            event_code: EventCode::EV_KEY(*key),
-            event_type: EventType::EV_KEY,
-            value: 0,
-        })?;
+static KEYBOARD: Virtual = LazyLock::new(|| create("keyboard/mouse", build_keyboard));
+static TOUCHPAD: Virtual = LazyLock::new(|| create("touchpad", build_touchpad));
+
+/// X display to send keys and scroll clicks to, when there is one.
+/// `SURFACE_DIAL_BACKEND=uinput` forces the uinput devices instead.
+static XTEST: LazyLock<Option<XTest>> = LazyLock::new(|| {
+    if std::env::var("SURFACE_DIAL_BACKEND").as_deref() == Ok("uinput") {
+        return None;
     }
-    kbd_syn_report()?;
-    Ok(())
+    XTest::connect()
+});
+
+/// The fake multitouch touchpad only exists with uinput: a X display (xrdp...)
+/// would never see it.
+pub fn touchpad_available() -> bool {
+    XTEST.is_none() && TOUCHPAD.is_some()
+}
+
+/// Picks the output backend up-front, so the first dial event is not lost.
+pub fn init() {
+    match XTEST.as_ref() {
+        Some(_) => eprintln!("sending input through XTEST (X display)"),
+        None => {
+            eprintln!("sending input through uinput");
+            LazyLock::force(&KEYBOARD);
+        }
+    }
+}
+
+fn emit(dev: &Virtual, events: &[InputEvent]) -> io::Result<()> {
+    match dev.as_ref() {
+        Some(dev) => dev.lock().unwrap().emit(events),
+        None => Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "virtual input device unavailable",
+        )),
+    }
+}
+
+fn key(k: Key, value: i32) -> InputEvent {
+    InputEvent::new(EventType::KEY, k.code(), value)
+}
+
+fn abs(axis: AbsoluteAxisType, value: i32) -> InputEvent {
+    InputEvent::new(EventType::ABSOLUTE, axis.0, value)
+}
+
+/// X keysym for each key the daemon may send.
+fn keysym(k: Key) -> Keysym {
+    match k {
+        Key::KEY_LEFTSHIFT => 0xffe1,
+        Key::KEY_LEFTCTRL => 0xffe3,
+        Key::KEY_LEFT => 0xff51,
+        Key::KEY_RIGHT => 0xff53,
+        Key::KEY_SPACE => 0x0020,
+        Key::KEY_EQUAL => 0x003d,
+        Key::KEY_MINUS => 0x002d,
+        Key::KEY_MUTE => 0x1008ff12,
+        Key::KEY_VOLUMEDOWN => 0x1008ff11,
+        Key::KEY_VOLUMEUP => 0x1008ff13,
+        Key::KEY_PLAYPAUSE => 0x1008ff14,
+        Key::KEY_PREVIOUSSONG => 0x1008ff16,
+        Key::KEY_NEXTSONG => 0x1008ff17,
+        other => unreachable!("no keysym for {:?}", other),
+    }
+}
+
+fn keys(keys: &[Key], press: bool) -> io::Result<()> {
+    if let Some(x) = XTEST.as_ref() {
+        let syms: Vec<_> = keys.iter().map(|&k| keysym(k)).collect();
+        return x.keys(&syms, press);
+    }
+    let events: Vec<_> = keys.iter().map(|&k| key(k, press as i32)).collect();
+    emit(&KEYBOARD, &events)
+}
+
+pub fn key_click(k: &[Key]) -> io::Result<()> {
+    key_press(k)?;
+    key_release(k)
+}
+
+pub fn key_press(k: &[Key]) -> io::Result<()> {
+    keys(k, true)
+}
+
+pub fn key_release(k: &[Key]) -> io::Result<()> {
+    keys(k, false)
 }
 
 pub fn scroll_step(dir: ScrollStep) -> io::Result<()> {
-    let keyboard = FAKE_INPUTS.keyboard.lock();
-
-    // copied from my razer blackwidow chroma mouse
-    keyboard.write_event(&InputEvent {
-        time: TimeVal::new(0, 0),
-        event_code: EventCode::EV_REL(EV_REL::REL_WHEEL),
-        event_type: EventType::EV_REL,
-        value: match dir {
-            ScrollStep::Down => -1,
-            ScrollStep::Up => 1,
-        },
-    })?;
-    keyboard.write_event(&InputEvent {
-        time: TimeVal::new(0, 0),
-        event_code: EventCode::EV_REL(EV_REL::REL_WHEEL_HI_RES),
-        event_type: EventType::EV_REL,
-        value: match dir {
-            ScrollStep::Down => -120,
-            ScrollStep::Up => 120,
-        },
-    })?;
-    kbd_syn_report()?;
-    Ok(())
+    if let Some(x) = XTEST.as_ref() {
+        return x.click(match dir {
+            ScrollStep::Up => 4,
+            ScrollStep::Down => 5,
+        });
+    }
+    let (lo, hi) = match dir {
+        ScrollStep::Down => (-1, -120),
+        ScrollStep::Up => (1, 120),
+    };
+    emit(
+        &KEYBOARD,
+        &[
+            InputEvent::new(EventType::RELATIVE, RelativeAxisType::REL_WHEEL.0, lo),
+            InputEvent::new(EventType::RELATIVE, RelativeAxisType::REL_WHEEL_HI_RES.0, hi),
+        ],
+    )
 }
 
-fn touch_syn_report() -> io::Result<()> {
-    (FAKE_INPUTS.touchpad.lock()).write_event(&input_event!(EV_SYN, SYN_REPORT, 0))
+/// Volume / media actions: KDE's global shortcuts when available (works in any
+/// session and shows Plasma's OSD), fake media keys otherwise.
+pub enum Action {
+    VolumeUp,
+    VolumeDown,
+    Mute,
+    PlayPause,
+    Next,
+    Previous,
+}
+
+pub fn action(a: Action) -> io::Result<()> {
+    let (component, shortcut, fallback): (_, _, &[Key]) = match a {
+        Action::VolumeUp => (
+            "kmix",
+            "increase_volume_small",
+            &[Key::KEY_LEFTSHIFT, Key::KEY_VOLUMEUP],
+        ),
+        Action::VolumeDown => (
+            "kmix",
+            "decrease_volume_small",
+            &[Key::KEY_LEFTSHIFT, Key::KEY_VOLUMEDOWN],
+        ),
+        Action::Mute => ("kmix", "mute", &[Key::KEY_MUTE]),
+        Action::PlayPause => ("mediacontrol", "playpausemedia", &[Key::KEY_PLAYPAUSE]),
+        Action::Next => ("mediacontrol", "nextmedia", &[Key::KEY_NEXTSONG]),
+        Action::Previous => ("mediacontrol", "previousmedia", &[Key::KEY_PREVIOUSSONG]),
+    };
+    if kde::invoke(component, shortcut) {
+        return Ok(());
+    }
+    key_click(fallback)
 }
 
 pub fn scroll_mt_start() -> io::Result<()> {
-    let touchpad = FAKE_INPUTS.touchpad.lock();
+    use AbsoluteAxisType as A;
 
-    {
-        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 0))?;
-        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_TRACKING_ID, 1))?;
-        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_X, MT_BASELINE))?;
-        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_Y, MT_BASELINE))?;
-
-        touchpad.write_event(&input_event!(EV_KEY, BTN_TOUCH, 1))?;
-        touchpad.write_event(&input_event!(EV_KEY, BTN_TOOL_FINGER, 1))?;
-
-        touchpad.write_event(&input_event!(EV_ABS, ABS_X, MT_BASELINE))?;
-        touchpad.write_event(&input_event!(EV_ABS, ABS_Y, MT_BASELINE))?;
-    }
-
-    touch_syn_report()?;
-
-    {
-        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 1))?;
-        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_TRACKING_ID, 2))?;
-        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_X, MT_BASELINE / 2))?;
-        touchpad.write_event(&input_event!(EV_ABS, ABS_MT_POSITION_Y, MT_BASELINE))?;
-
-        touchpad.write_event(&input_event!(EV_KEY, BTN_TOOL_FINGER, 0))?;
-        touchpad.write_event(&input_event!(EV_KEY, BTN_TOOL_DOUBLETAP, 1))?;
-    }
-
-    touch_syn_report()?;
-
-    Ok(())
+    emit(
+        &TOUCHPAD,
+        &[
+            abs(A::ABS_MT_SLOT, 0),
+            abs(A::ABS_MT_TRACKING_ID, 1),
+            abs(A::ABS_MT_POSITION_X, MT_BASELINE),
+            abs(A::ABS_MT_POSITION_Y, MT_BASELINE),
+            key(Key::BTN_TOUCH, 1),
+            key(Key::BTN_TOOL_FINGER, 1),
+            abs(A::ABS_X, MT_BASELINE),
+            abs(A::ABS_Y, MT_BASELINE),
+        ],
+    )?;
+    emit(
+        &TOUCHPAD,
+        &[
+            abs(A::ABS_MT_SLOT, 1),
+            abs(A::ABS_MT_TRACKING_ID, 2),
+            abs(A::ABS_MT_POSITION_X, MT_BASELINE / 2),
+            abs(A::ABS_MT_POSITION_Y, MT_BASELINE),
+            key(Key::BTN_TOOL_FINGER, 0),
+            key(Key::BTN_TOOL_DOUBLETAP, 1),
+        ],
+    )
 }
 
 pub fn scroll_mt_step(delta: i32) -> io::Result<()> {
-    let touchpad = FAKE_INPUTS.touchpad.lock();
+    use AbsoluteAxisType as A;
 
-    touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 0))?;
-    touchpad.write_event(&input_event!(
-        EV_ABS,
-        ABS_MT_POSITION_Y,
-        MT_BASELINE + delta
-    ))?;
-    touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 1))?;
-    touchpad.write_event(&input_event!(
-        EV_ABS,
-        ABS_MT_POSITION_Y,
-        MT_BASELINE + delta
-    ))?;
-
-    touchpad.write_event(&input_event!(EV_ABS, ABS_Y, MT_BASELINE + delta))?;
-
-    touch_syn_report()?;
-
-    Ok(())
+    emit(
+        &TOUCHPAD,
+        &[
+            abs(A::ABS_MT_SLOT, 0),
+            abs(A::ABS_MT_POSITION_Y, MT_BASELINE + delta),
+            abs(A::ABS_MT_SLOT, 1),
+            abs(A::ABS_MT_POSITION_Y, MT_BASELINE + delta),
+            abs(A::ABS_Y, MT_BASELINE + delta),
+        ],
+    )
 }
 
 pub fn scroll_mt_end() -> io::Result<()> {
-    let touchpad = FAKE_INPUTS.touchpad.lock();
+    use AbsoluteAxisType as A;
 
-    touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 0))?;
-    touchpad.write_event(&input_event!(EV_ABS, ABS_MT_TRACKING_ID, -1))?;
-    touchpad.write_event(&input_event!(EV_ABS, ABS_MT_SLOT, 1))?;
-    touchpad.write_event(&input_event!(EV_ABS, ABS_MT_TRACKING_ID, -1))?;
-
-    touchpad.write_event(&input_event!(EV_KEY, BTN_TOUCH, 0))?;
-    touchpad.write_event(&input_event!(EV_KEY, BTN_TOOL_DOUBLETAP, 0))?;
-
-    touch_syn_report()?;
-
-    Ok(())
+    emit(
+        &TOUCHPAD,
+        &[
+            abs(A::ABS_MT_SLOT, 0),
+            abs(A::ABS_MT_TRACKING_ID, -1),
+            abs(A::ABS_MT_SLOT, 1),
+            abs(A::ABS_MT_TRACKING_ID, -1),
+            key(Key::BTN_TOUCH, 0),
+            key(Key::BTN_TOOL_DOUBLETAP, 0),
+        ],
+    )
 }
 
 pub enum ScrollStep {

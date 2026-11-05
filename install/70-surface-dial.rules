@@ -1,0 +1,15 @@
+# Surface Dial (Bluetooth, 045E:091B): give access to the dial only, instead of
+# adding the user to the `input` group (which would also expose every keyboard).
+#
+# GROUP=plugdev rather than uaccess: with a remote session (xrdp) the local seat
+# belongs to the login screen, so uaccess would grant the dial to sddm (and its
+# ACL also masks the group permissions on hidraw).
+
+# evdev nodes: rotation + button
+SUBSYSTEM=="input", KERNEL=="event*", KERNELS=="0005:045E:091B.*", GROUP="plugdev", MODE="0660"
+
+# hidraw node: haptic feedback
+SUBSYSTEM=="hidraw", KERNELS=="0005:045E:091B.*", GROUP="plugdev", MODE="0660"
+
+# uinput: only needed by the local session (an X session uses XTEST instead)
+KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", TAG+="uaccess"

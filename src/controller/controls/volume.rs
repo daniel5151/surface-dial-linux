@@ -3,7 +3,7 @@ use crate::dial_device::DialHaptics;
 use crate::error::{Error, Result};
 use crate::fake_input;
 
-use evdev_rs::enums::EV_KEY;
+use crate::fake_input::Action;
 
 pub struct Volume {}
 
@@ -29,19 +29,17 @@ impl ControlMode for Volume {
 
     fn on_btn_release(&mut self, _: &DialHaptics) -> Result<()> {
         eprintln!("mute");
-        fake_input::key_click(&[EV_KEY::KEY_MUTE]).map_err(Error::Evdev)?;
+        fake_input::action(Action::Mute).map_err(Error::Evdev)?;
         Ok(())
     }
 
     fn on_dial(&mut self, _: &DialHaptics, delta: i32) -> Result<()> {
         if delta > 0 {
             eprintln!("volume up");
-            fake_input::key_click(&[EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_VOLUMEUP])
-                .map_err(Error::Evdev)?;
+            fake_input::action(Action::VolumeUp).map_err(Error::Evdev)?;
         } else {
             eprintln!("volume down");
-            fake_input::key_click(&[EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_VOLUMEDOWN])
-                .map_err(Error::Evdev)?;
+            fake_input::action(Action::VolumeDown).map_err(Error::Evdev)?;
         }
 
         Ok(())

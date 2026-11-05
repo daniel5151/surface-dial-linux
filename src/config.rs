@@ -16,7 +16,8 @@ use crate::error::{Error, Result};
 // TODO: stop using strings for errors lol
 
 pub struct Config {
-    pub last_mode: usize,
+    /// name of the last selected mode
+    pub last_mode: String,
 }
 
 fn get_cfg_file() -> Result<fs::File> {
@@ -29,7 +30,7 @@ fn get_cfg_file() -> Result<fs::File> {
         .map_err(|e| Error::ConfigFile(format!("could not create config dir: {}", e)))?;
 
     if !cfg_file_path.exists() {
-        fs::write(&cfg_file_path, "0")
+        fs::write(&cfg_file_path, "")
             .map_err(|e| Error::ConfigFile(format!("could not write to config file: {}", e)))?;
     }
 
@@ -51,15 +52,17 @@ impl Config {
             .read_to_string(&mut content)
             .map_err(|e| Error::ConfigFile(format!("could not read the config file: {}", e)))?;
 
-        let last_mode = content
-            .parse()
-            .map_err(|e| Error::ConfigFile(format!("could not parse the config file: {}", e)))?;
+        // older versions stored an index: it simply won't match a mode name
+        let last_mode = content.trim().to_string();
 
         Ok(Config { last_mode })
     }
 
     pub fn to_disk(&self) -> Result<()> {
         let mut cfg_file = get_cfg_file()?;
+        cfg_file
+            .set_len(0)
+            .map_err(|e| Error::ConfigFile(format!("could not truncate the config file: {}", e)))?;
         cfg_file
             .write_all(format!("{}", self.last_mode).as_bytes())
             .map_err(|e| Error::ConfigFile(format!("could not write to the config file: {}", e)))?;

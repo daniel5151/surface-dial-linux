@@ -7,6 +7,8 @@ pub mod controller;
 mod dial_device;
 mod error;
 mod fake_input;
+mod kde;
+mod xtest;
 
 use std::sync::mpsc;
 
@@ -15,7 +17,8 @@ use crate::dial_device::DialDevice;
 use crate::error::{Error, Result};
 
 use notify_rust::{Hint, Notification, Timeout};
-use signal_hook::{iterator::Signals, SIGINT, SIGTERM};
+use signal_hook::consts::{SIGINT, SIGTERM};
+use signal_hook::iterator::Signals;
 
 fn main() {
     let (terminate_tx, terminate_rx) = mpsc::channel::<Result<()>>();
@@ -23,7 +26,7 @@ fn main() {
     std::thread::spawn({
         let terminate_tx = terminate_tx.clone();
         move || {
-            let signals = Signals::new(&[SIGTERM, SIGINT]).unwrap();
+            let mut signals = Signals::new([SIGTERM, SIGINT]).unwrap();
             for sig in signals.forever() {
                 eprintln!("received signal {:?}", sig);
                 let _ = terminate_tx.send(Err(Error::TermSig));
@@ -43,7 +46,8 @@ fn main() {
         Ok(Err(e)) => {
             println!("Error: {}", e);
             match e {
-                Error::TermSig => (false, "Terminated!".into(), "dialog-warning"),
+                // a normal stop (logout, systemctl stop): exit quietly
+                Error::TermSig => std::process::exit(0),
                 // HACK: silently exit if the dial disconnects
                 Error::Evdev(e) if e.raw_os_error() == Some(19) => (true, "".into(), ""),
                 other => (false, format!("Error: {}", other), "dialog-error"),
@@ -76,21 +80,26 @@ fn controller_main() -> Result<()> {
 
     let cfg = config::Config::from_disk()?;
 
+    fake_input::init();
+
     let dial = DialDevice::new(std::time::Duration::from_millis(750))?;
 
-    let mut controller = DialController::new(
-        dial,
-        cfg.last_mode,
-        vec![
-            Box::new(controller::controls::Scroll::new()),
-            Box::new(controller::controls::ScrollMT::new()),
+    let mut modes: Vec<Box<dyn controller::ControlMode>> =
+        vec![Box::new(controller::controls::Scroll::new())];
+    if fake_input::touchpad_available() {
+        modes.push(Box::new(controller::controls::ScrollMT::new()));
+    } else {
+        eprintln!("multitouch scrolling unavailable, mode hidden");
+    }
+    modes.extend::<Vec<Box<dyn controller::ControlMode>>>(vec![
             Box::new(controller::controls::Zoom::new()),
             Box::new(controller::controls::Volume::new()),
             Box::new(controller::controls::Media::new()),
             Box::new(controller::controls::MediaWithVolume::new()),
             Box::new(controller::controls::Paddle::new()),
-        ],
-    );
+    ]);
+
+    let mut controller = DialController::new(dial, &cfg.last_mode, modes);
 
     controller.run()
 }

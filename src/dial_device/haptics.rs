@@ -57,21 +57,37 @@ impl DialHapticsWorker {
 
             eprintln!("haptics worker is ready");
 
-            let api = HidApi::new().map_err(Error::HidError)?;
-            let hid_device = api.open(0x045e, 0x091b).map_err(Error::HidError)?;
-            let wrapper = DialHidWrapper { hid_device };
+            // haptics are optional: without them the dial still works
+            let wrapper = HidApi::new()
+                .and_then(|api| api.open(0x045e, 0x091b))
+                .map(|hid_device| DialHidWrapper { hid_device });
+            let wrapper = match wrapper {
+                Ok(w) => Some(w),
+                Err(e) => {
+                    eprintln!("haptics unavailable: {}", e);
+                    None
+                }
+            };
 
             loop {
-                match self.msg.recv().unwrap() {
+                let res = match self.msg.recv().unwrap() {
                     DialHapticsWorkerMsg::DialConnected => {
                         eprintln!("Unexpected haptics worker ready event.");
                         // should be fine though?
+                        Ok(())
                     }
                     DialHapticsWorkerMsg::DialDisconnected => break,
-                    DialHapticsWorkerMsg::SetMode { haptics, steps } => {
-                        wrapper.set_mode(haptics, steps)?
-                    }
-                    DialHapticsWorkerMsg::Manual { repeat } => wrapper.buzz(repeat)?,
+                    DialHapticsWorkerMsg::SetMode { haptics, steps } => match &wrapper {
+                        Some(w) => w.set_mode(haptics, steps),
+                        None => Ok(()),
+                    },
+                    DialHapticsWorkerMsg::Manual { repeat } => match &wrapper {
+                        Some(w) => w.buzz(repeat),
+                        None => Ok(()),
+                    },
+                };
+                if let Err(e) = res {
+                    eprintln!("haptics error: {}", e);
                 }
             }
         }

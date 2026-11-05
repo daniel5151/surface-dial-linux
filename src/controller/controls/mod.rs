@@ -9,6 +9,7 @@ mod zoom;
 
 pub use self::media::*;
 pub use self::media_with_volume::*;
+#[allow(unused_imports)]
 pub use self::null::*;
 pub use self::paddle::*;
 pub use self::scroll::*;

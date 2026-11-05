@@ -5,6 +5,12 @@ use crate::error::{Error, Result};
 
 pub mod controls;
 
+fn log_err(res: Result<()>) {
+    if let Err(e) = res {
+        eprintln!("action failed: {}", e);
+    }
+}
+
 pub struct ControlModeMeta {
     /// Mode Name (as displayed in the Meta selection menu)
     name: &'static str,
@@ -50,11 +56,16 @@ pub struct DialController {
 }
 
 impl DialController {
+    /// `initial_mode` is a mode name; unknown names fall back to the first mode.
     pub fn new(
         device: DialDevice,
-        initial_mode: usize,
+        initial_mode: &str,
         modes: Vec<Box<dyn ControlMode>>,
     ) -> DialController {
+        let initial_mode = modes
+            .iter()
+            .position(|m| m.meta().name == initial_mode)
+            .unwrap_or(0);
         let metas = modes.iter().map(|m| m.meta()).collect();
 
         let new_mode = Arc::new(Mutex::new(None));
@@ -80,7 +91,7 @@ impl DialController {
                 let mode = &mut self.modes[new_mode];
 
                 haptics.set_mode(mode.meta().haptics, mode.meta().steps)?;
-                mode.on_start(haptics)?;
+                log_err(mode.on_start(haptics));
             }
 
             let mode = match self.active_mode {
@@ -94,24 +105,25 @@ impl DialController {
                 DialEventKind::Connect => {
                     eprintln!("Dial Connected");
                     haptics.set_mode(mode.meta().haptics, mode.meta().steps)?;
-                    mode.on_start(haptics)?
+                    log_err(mode.on_start(haptics))
                 }
                 DialEventKind::Disconnect => {
                     eprintln!("Dial Disconnected");
-                    mode.on_end(haptics)?
+                    log_err(mode.on_end(haptics))
                 }
 
-                DialEventKind::ButtonPress => mode.on_btn_press(haptics)?,
-                DialEventKind::ButtonRelease => mode.on_btn_release(haptics)?,
-                DialEventKind::Dial(delta) => mode.on_dial(haptics, delta)?,
+                // a failing action is logged, it must not kill the daemon
+                DialEventKind::ButtonPress => log_err(mode.on_btn_press(haptics)),
+                DialEventKind::ButtonRelease => log_err(mode.on_btn_release(haptics)),
+                DialEventKind::Dial(delta) => log_err(mode.on_dial(haptics, delta)),
 
                 DialEventKind::ButtonLongPress => {
                     eprintln!("long press!");
                     if !matches!(self.active_mode, ActiveMode::Meta) {
-                        mode.on_end(haptics)?;
+                        log_err(mode.on_end(haptics));
                         self.active_mode = ActiveMode::Meta;
                         // meta_mode sets haptic feedback manually
-                        self.meta_mode.on_start(haptics)?;
+                        log_err(self.meta_mode.on_start(haptics));
                     }
                 }
             }
@@ -191,10 +203,11 @@ impl ControlMode for MetaMode {
         } else {
             *self.new_mode.lock().unwrap() = Some(self.current_mode);
 
-            crate::config::Config {
-                last_mode: self.current_mode,
+            let saved = crate::config::Config {
+                last_mode: self.metas[self.current_mode].name.to_string(),
             }
-            .to_disk()?;
+            .to_disk();
+            log_err(saved);
 
             self.notif.take().unwrap().close();
             haptics.buzz(1)?;
@@ -220,7 +233,7 @@ impl ControlMode for MetaMode {
             notification
                 .body(&format!("New Mode: {}", mode_meta.name))
                 .icon(mode_meta.icon);
-            notification.update();
+            let _ = notification.update();
         }
 
         Ok(())

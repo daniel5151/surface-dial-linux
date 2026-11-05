@@ -8,7 +8,7 @@ use crate::dial_device::DialHaptics;
 use crate::error::Result;
 use crate::fake_input;
 
-use evdev_rs::enums::EV_KEY;
+use evdev::Key;
 
 // everything is done in a worker, as we need use `recv_timeout` as a (very)
 // poor man's `select!`.
@@ -69,15 +69,15 @@ impl Worker {
                     self.enabled = enabled;
                     if !enabled {
                         fake_input::key_release(&[
-                            EV_KEY::KEY_SPACE,
-                            EV_KEY::KEY_LEFT,
-                            EV_KEY::KEY_RIGHT,
+                            Key::KEY_SPACE,
+                            Key::KEY_LEFT,
+                            Key::KEY_RIGHT,
                         ])
                         .unwrap()
                     }
                 }
-                Ok(Msg::ButtonDown) => fake_input::key_press(&[EV_KEY::KEY_SPACE]).unwrap(),
-                Ok(Msg::ButtonUp) => fake_input::key_release(&[EV_KEY::KEY_SPACE]).unwrap(),
+                Ok(Msg::ButtonDown) => fake_input::key_press(&[Key::KEY_SPACE]).unwrap(),
+                Ok(Msg::ButtonUp) => fake_input::key_release(&[Key::KEY_SPACE]).unwrap(),
                 Ok(Msg::Delta(delta)) => {
                     // abrupt direction change!
                     if (delta < 0) != (self.last_delta < 0) {
@@ -103,14 +103,14 @@ impl Worker {
             }
 
             if self.velocity.abs() < self.deadzone {
-                fake_input::key_release(&[EV_KEY::KEY_LEFT, EV_KEY::KEY_RIGHT]).unwrap();
+                fake_input::key_release(&[Key::KEY_LEFT, Key::KEY_RIGHT]).unwrap();
                 continue;
             }
 
             match self.velocity.cmp(&0) {
                 Ordering::Equal => {}
-                Ordering::Less => fake_input::key_press(&[EV_KEY::KEY_LEFT]).unwrap(),
-                Ordering::Greater => fake_input::key_press(&[EV_KEY::KEY_RIGHT]).unwrap(),
+                Ordering::Less => fake_input::key_press(&[Key::KEY_LEFT]).unwrap(),
+                Ordering::Greater => fake_input::key_press(&[Key::KEY_RIGHT]).unwrap(),
             }
 
             // eprintln!("{:?}", self.velocity);
