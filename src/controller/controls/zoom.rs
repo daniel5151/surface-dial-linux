@@ -34,11 +34,11 @@ impl ControlMode for Zoom {
     fn on_dial(&mut self, _: &DialHaptics, delta: i32) -> Result<()> {
         if delta > 0 {
             eprintln!("zoom in");
-            fake_input::key_click(&[Key::KEY_LEFTCTRL, Key::KEY_EQUAL])
+            fake_input::key_click(&[Key::KEY_LEFTCTRL, Key::KEY_KPPLUS])
                 .map_err(Error::Evdev)?;
         } else {
             eprintln!("zoom out");
-            fake_input::key_click(&[Key::KEY_LEFTCTRL, Key::KEY_MINUS])
+            fake_input::key_click(&[Key::KEY_LEFTCTRL, Key::KEY_KPMINUS])
                 .map_err(Error::Evdev)?;
         }
 

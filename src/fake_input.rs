@@ -35,8 +35,8 @@ lazy_static::lazy_static! {
                 Key::KEY_RIGHT,
 
                 Key::KEY_SPACE,
-                Key::KEY_EQUAL,
-                Key::KEY_MINUS,
+                Key::KEY_KPPLUS,
+                Key::KEY_KPMINUS,
             ]
             .iter()
             .copied()
