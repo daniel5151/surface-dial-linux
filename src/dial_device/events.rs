@@ -1,14 +1,13 @@
-use std::fs;
 use std::sync::mpsc;
 use std::time::Duration;
 
-use evdev_rs::{InputEvent, ReadStatus};
+use evdev::InputEvent;
 use std::os::unix::io::AsRawFd;
 
 use super::DialHapticsWorkerMsg;
 
 pub enum RawInputEvent {
-    Event(ReadStatus, InputEvent),
+    Event(InputEvent),
     Connect,
     Disconnect,
 }
@@ -38,7 +37,7 @@ impl EventsWorker {
         }
     }
 
-    fn udev_to_evdev(&self, device: &udev::Device) -> std::io::Result<Option<evdev_rs::Device>> {
+    fn udev_to_evdev(&self, device: &udev::Device) -> std::io::Result<Option<evdev::Device>> {
         let devnode = match device.devnode() {
             Some(path) => path,
             None => return Ok(None),
@@ -62,11 +61,10 @@ impl EventsWorker {
             }
         }
 
-        let file = fs::File::open(devnode)?;
-        evdev_rs::Device::new_from_fd(file).map(Some)
+        evdev::Device::open(devnode).map(Some)
     }
 
-    fn event_loop(&mut self, device: evdev_rs::Device) -> std::io::Result<()> {
+    fn event_loop(&mut self, mut device: evdev::Device) -> std::io::Result<()> {
         // HACK: don't want to double-send these events
         if self.input_kind != DialInputKind::Control {
             self.haptics_msg
@@ -76,14 +74,16 @@ impl EventsWorker {
         }
 
         loop {
-            let _ = self
-                .events
-                .send(match device.next_event(evdev_rs::ReadFlag::BLOCKING) {
-                    Ok((read_status, event)) => RawInputEvent::Event(read_status, event),
-                    // this error corresponds to the device disconnecting, which is fine
-                    Err(e) if e.raw_os_error() == Some(19) => break,
-                    Err(e) => return Err(e),
-                });
+            match device.fetch_events() {
+                Ok(events) => {
+                    for event in events {
+                        let _ = self.events.send(RawInputEvent::Event(event));
+                    }
+                }
+                // this error corresponds to the device disconnecting, which is fine
+                Err(e) if e.raw_os_error() == Some(19) => break,
+                Err(e) => return Err(e),
+            }
         }
 
         // HACK: don't want to double-send these events

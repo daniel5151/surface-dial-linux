@@ -1,7 +1,7 @@
 use std::fmt;
 use std::io;
 
-use evdev_rs::InputEvent;
+use evdev::InputEvent;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
