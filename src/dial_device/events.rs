@@ -1,10 +1,14 @@
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use evdev::InputEvent;
+use evdev::{InputEvent, InputEventKind};
 use std::os::unix::io::AsRawFd;
 
 use super::DialHapticsWorkerMsg;
+
+/// When it wakes up, the dial replays every rotation made while it was asleep
+/// (see issue #15). Rotations received this soon after connecting are dropped.
+const CONNECT_GRACE: Duration = Duration::from_millis(750);
 
 pub enum RawInputEvent {
     Event(InputEvent),
@@ -73,10 +77,15 @@ impl EventsWorker {
             self.events.send(RawInputEvent::Connect).unwrap();
         }
 
+        let connected_at = Instant::now();
         loop {
             match device.fetch_events() {
                 Ok(events) => {
                     for event in events {
+                        let is_rotation = matches!(event.kind(), InputEventKind::RelAxis(_));
+                        if is_rotation && connected_at.elapsed() < CONNECT_GRACE {
+                            continue;
+                        }
                         let _ = self.events.send(RawInputEvent::Event(event));
                     }
                 }
