@@ -43,7 +43,8 @@ fn main() {
         Ok(Err(e)) => {
             println!("Error: {}", e);
             match e {
-                Error::TermSig => (false, "Terminated!".into(), "dialog-warning"),
+                // a normal stop (logout, systemctl stop): exit quietly
+                Error::TermSig => std::process::exit(0),
                 // HACK: silently exit if the dial disconnects
                 Error::Evdev(e) if e.raw_os_error() == Some(19) => (true, "".into(), ""),
                 other => (false, format!("Error: {}", other), "dialog-error"),
