@@ -79,7 +79,7 @@ The daemon is able to handle the dial disconnecting/reconnecting, so as long as 
 
 Note that the daemon must run as a _user process_ (**not** as root), as it needs access to the user's D-Bus to send notifications.
 
-Having to run as a user process complicates things a bit, as the daemon must be able to access several restricted-by-default devices under `/dev/`. Notably, the `/dev/uinput` device and the Surface Dial's `/dev/hidrawX` device will need to have their permissions changed for things to work correctly. The proper way to do this is using the included [udev rules](https://wiki.debian.org/udev), though if you just want to get something up and running, `sudo chmod 666 <device>` should work fine (though it will revert back once you reboot!).
+Having to run as a user process complicates things a bit, as the daemon must be able to access several restricted-by-default devices under `/dev/`. Notably, the `/dev/uinput` device and the Surface Dial's `/dev/input/eventX` and `/dev/hidrawX` devices will need to have their permissions changed for things to work correctly. The proper way to do this is using the included [udev rules](https://wiki.debian.org/udev), though if you just want to get something up and running, `sudo chmod 666 <device>` should work fine (though it will revert back once you reboot!).
 
 See the Installation section below for how to set up the permissions / udev rules.
 
@@ -102,9 +102,6 @@ The following steps have been tested working on Ubuntu 20.04/20.10.
 # You could also just copy the executable from /target/release/surface-dial-daemon to wherever you like.
 cargo install --path .
 
-# add self to the existing /dev/input group (either `input` or `plugdev`, depending on your distro)
-sudo gpasswd -a $(whoami) $(stat -c "%G" /dev/input/event0)
-
 # install the systemd user service
 mkdir -p ~/.config/systemd/user/
 cp ./install/surface-dial.service ~/.config/systemd/user/surface-dial.service
@@ -113,9 +110,10 @@ cp ./install/surface-dial.service ~/.config/systemd/user/surface-dial.service
 sudo cp ./install/10-uinput.rules /etc/udev/rules.d/10-uinput.rules
 sudo cp ./install/10-surface-dial.rules /etc/udev/rules.d/10-surface-dial.rules
 
-# reload systemd + udev
+# reload systemd + udev, and apply the rules to the already-connected dial
 systemctl --user daemon-reload
 sudo udevadm control --reload
+sudo udevadm trigger --subsystem-match=input --subsystem-match=hidraw --subsystem-match=misc
 
 # enable and start the user service
 systemctl --user enable surface-dial.service
@@ -124,7 +122,9 @@ systemctl --user start surface-dial.service
 
 To see if the service is running correctly, run `systemctl --user status surface-dial.service`.
 
-You may need to reboot to have the various groups / udev rules propagate.  You may also need to change DisableSecurity to DisableSecurity=true in /etc/bluetooth/network.conf to successfully pair the Surface Dial.
+The udev rules grant access to whoever is logged in at the machine's seat (through systemd-logind's `uaccess` tag), so there is no need to add yourself to the `input` group, which would give access to every keyboard and mouse on the system. The service starts with your graphical session (`graphical-session.target`, provided by GNOME, KDE Plasma and other systemd-managed sessions).
+
+You may need to log out and back in (or reboot) for the udev rules to take effect.  You may also need to change DisableSecurity to DisableSecurity=true in /etc/bluetooth/network.conf to successfully pair the Surface Dial.
 
 If things aren't working, feel free to file a bug report!
 
