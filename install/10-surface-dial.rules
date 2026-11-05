@@ -1,1 +1,5 @@
-KERNEL=="hidraw*", SUBSYSTEM=="hidraw", SUBSYSTEMS=="hid", DRIVERS=="microsoft", TAG+="uaccess", TAG+="udev-acl"
+# Give the user logged in at the seat access to the Surface Dial's input
+# (/dev/input/eventX) and hidraw (/dev/hidrawX) nodes. Matching on the dial's
+# Bluetooth vendor/product ID keeps other Microsoft devices untouched.
+SUBSYSTEM=="input", KERNEL=="event*", KERNELS=="0005:045E:091B.*", TAG+="uaccess"
+SUBSYSTEM=="hidraw", KERNELS=="0005:045E:091B.*", TAG+="uaccess"

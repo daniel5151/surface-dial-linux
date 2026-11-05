@@ -2,11 +2,16 @@
 
 [Unit]
 Description=Surface Dial Daemon
+# needs the desktop session (notification server, seat permissions)
+PartOf=graphical-session.target
+After=graphical-session.target
 
 [Service]
 Type=simple
 StandardOutput=journal
 ExecStart=%h/.cargo/bin/surface-dial-daemon
+Restart=on-failure
+RestartSec=3
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target
